@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MoMo Bridge</string>
+    <string name="channel_name">SMS Listener</string>
+    <string name="channel_description">Background service monitoring MoMo transactions</string>
+    <string name="service_notification_title">MoMo Bridge Active</string>
+    <string name="service_notification_text">Monitoring for incoming Mobile Money SMS</string>
+</resources>
