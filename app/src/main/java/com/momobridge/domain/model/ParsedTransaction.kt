@@ -8,5 +8,7 @@ data class ParsedTransaction(
     val senderPhone: String?,
     val balanceAfter: Double?,
     val receivedAt: Long,
-    val rawSms: String
+    val rawSms: String,
+    val confidence: Double = 1.0,
+    val parsedBy: String = "rule"
 )

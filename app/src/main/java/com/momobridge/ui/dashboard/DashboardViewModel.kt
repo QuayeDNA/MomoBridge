@@ -1,20 +1,17 @@
 package com.momobridge.ui.dashboard
 
-import android.content.Context
 import android.content.SharedPreferences
-import android.net.Uri
-import android.provider.Telephony
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.data.repository.SmsSourceRepository
 import com.momobridge.data.repository.TransactionRepository
 import com.momobridge.di.RegularPrefs
-import com.momobridge.domain.parser.SmsParser
+import com.momobridge.domain.usecase.ScanInboxUseCase
 import com.momobridge.service.RelayClient
-import com.momobridge.service.SmsListenerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,7 +27,8 @@ class DashboardViewModel @Inject constructor(
     @RegularPrefs private val prefs: SharedPreferences,
     private val repository: TransactionRepository,
     private val smsSourceRepository: SmsSourceRepository,
-    private val relayClient: RelayClient
+    private val relayClient: RelayClient,
+    private val scanInboxUseCase: ScanInboxUseCase
 ) : ViewModel() {
 
     val transactions: StateFlow<List<SmsTransactionEntity>> = repository.observeTransactions()
@@ -58,11 +56,19 @@ class DashboardViewModel @Inject constructor(
     private val _selectedTransaction = MutableStateFlow<SmsTransactionEntity?>(null)
     val selectedTransaction: StateFlow<SmsTransactionEntity?> = _selectedTransaction
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     private val _scanningHistorical = MutableStateFlow(false)
     val scanningHistorical: StateFlow<Boolean> = _scanningHistorical
 
     init {
         autoScanIfNeeded()
+        viewModelScope.launch {
+            repository.observeTransactions().collect {
+                if (_isLoading.value) _isLoading.value = false
+            }
+        }
     }
 
     fun selectTransaction(txn: SmsTransactionEntity) {
@@ -81,51 +87,22 @@ class DashboardViewModel @Inject constructor(
     }
 
     private suspend fun scanHistoricalTransactions() {
-        val sources = smsSourceRepository.getSources().filter { it.enabled && it.parsingRule != null }
+        val sources = smsSourceRepository.getSources().filter { it.enabled }
         if (sources.isEmpty()) return
 
         _scanningHistorical.value = true
 
-        withContext(Dispatchers.IO) {
-            val twoMonthsAgo = System.currentTimeMillis() - (62L * 24 * 60 * 60 * 1000)
-            var found = 0
-            var skipped = 0
+        val result = scanInboxUseCase.scanHistoricalTransactions(
+            contentResolver = context.contentResolver,
+            sources = sources
+        ) { parsed ->
+            repository.saveHistoricalTransaction(parsed)
+        }
 
-            for (source in sources) {
-                val rule = source.parsingRule!!
-                try {
-                    val uri = Uri.parse("content://sms/inbox")
-                    val projection = arrayOf(
-                        Telephony.TextBasedSmsColumns.BODY,
-                        Telephony.TextBasedSmsColumns.DATE
-                    )
-                    val selection = "${Telephony.TextBasedSmsColumns.ADDRESS} = ? " +
-                        "AND ${Telephony.TextBasedSmsColumns.DATE} >= ?"
-                    val selectionArgs = arrayOf(source.senderAddress, twoMonthsAgo.toString())
-                    val cursor = context.contentResolver.query(
-                        uri, projection, selection, selectionArgs,
-                        "${Telephony.TextBasedSmsColumns.DATE} ASC"
-                    )
-                    cursor?.use {
-                        while (it.moveToNext()) {
-                            val body = it.getString(0) ?: continue
-                            val timestamp = it.getLong(1)
-                            val parsed = SmsParser.parse(
-                                body, rule, timestamp, source.senderAddress
-                            )
-                            if (parsed == null) {
-                                skipped++
-                                continue
-                            }
-                            val saved = repository.saveHistoricalTransaction(parsed)
-                            if (saved) found++
-                        }
-                    }
-                } catch (_: Exception) { }
-            }
-
-            _scanningHistorical.value = false
+        if (result.found > 0 || sources.any { it.parsingRule != null }) {
             prefs.edit().putBoolean("historical_scan_done", true).apply()
         }
+
+        _scanningHistorical.value = false
     }
 }

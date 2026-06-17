@@ -8,10 +8,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,7 +31,7 @@ import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,11 +43,11 @@ data class StatusVisual(
 )
 
 fun statusVisual(status: String): StatusVisual = when (status) {
-    SmsTransactionEntity.CONFIRMED -> StatusVisual(MomoColors.StatusConfirmed, Icons.Default.CheckCircle, "Confirmed")
-    SmsTransactionEntity.PENDING -> StatusVisual(MomoColors.StatusPending, Icons.Default.HourglassEmpty, "Pending")
-    SmsTransactionEntity.FAILED -> StatusVisual(MomoColors.StatusFailed, Icons.Default.Error, "Failed")
-    SmsTransactionEntity.EXPIRED -> StatusVisual(MomoColors.StatusExpired, Icons.Default.Error, "Expired")
-    else -> StatusVisual(Color.Gray, Icons.Default.HourglassEmpty, status)
+    SmsTransactionEntity.CONFIRMED -> StatusVisual(MomoColors.StatusConfirmed, Icons.Default.CheckCircle, "CONFIRMED")
+    SmsTransactionEntity.PENDING -> StatusVisual(MomoColors.StatusPending, Icons.Default.HourglassEmpty, "PENDING")
+    SmsTransactionEntity.FAILED -> StatusVisual(MomoColors.StatusFailed, Icons.Default.Error, "FAILED")
+    SmsTransactionEntity.EXPIRED -> StatusVisual(MomoColors.StatusExpired, Icons.Default.Timelapse, "EXPIRED")
+    else -> StatusVisual(Color.Gray, Icons.Default.HourglassEmpty, status.uppercase())
 }
 
 @Composable
@@ -63,9 +67,9 @@ fun TransactionCard(
 
     val isConfirmed = txn.status == SmsTransactionEntity.CONFIRMED
     val isClaimed = isConfirmed && txn.claimedByKeyLabel != null
-    val statusText = if (isClaimed) "Claimed" else visual.label
+    val statusText = if (isClaimed) "CLAIMED" else visual.label
     val statusColor = if (isClaimed) MomoColors.Gold else visual.color
-    val borderColor = if (isClaimed) MomoColors.Gold else if (isConfirmed) MomoColors.StatusConfirmed else Color.Transparent
+    val borderColor = if (isClaimed) MomoColors.Gold else if (isConfirmed) MomoColors.StatusConfirmed else MomoColors.BorderSubtle
 
     Card(
         modifier = modifier
@@ -75,7 +79,7 @@ fun TransactionCard(
         colors = CardDefaults.cardColors(
             containerColor = MomoColors.GroundMedium
         ),
-        border = if (isConfirmed) BorderStroke(1.dp, borderColor) else null
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
@@ -87,34 +91,42 @@ fun TransactionCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "${txn.network} · ",
-                        style = MomoType.TitleSmall,
+                        style = MomoTypography.TitleSmall,
                         fontWeight = FontWeight.Medium,
                         color = MomoColors.TextPrimary
                     )
                     Text(
                         text = "GH₵${"%.2f".format(txn.amount)}",
-                        style = MomoType.AmountMono
+                        style = MomoTypography.AmountMono
                     )
                     if (isConfirmed) {
                         Spacer(modifier = Modifier.width(MomoSpacing.Sm))
                         if (isClaimed) {
-                            Text(
-                                text = "Claimed",
-                                style = MomoType.LabelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MomoColors.Gold
-                            )
-                            Spacer(modifier = Modifier.width(MomoSpacing.Xs))
-                            Text(
-                                text = "· ${txn.claimedByKeyLabel}",
-                                style = MomoType.LabelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MomoColors.Gold
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(MomoColors.Highlight, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = MomoSpacing.Xs, vertical = MomoSpacing.Xxs)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "CLAIMED",
+                                        style = MomoTypography.LabelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MomoColors.Gold
+                                    )
+                                    Spacer(modifier = Modifier.width(MomoSpacing.Xs))
+                                    Text(
+                                        text = "· ${txn.claimedByKeyLabel}",
+                                        style = MomoTypography.LabelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MomoColors.Gold
+                                    )
+                                }
+                            }
                         } else {
                             Text(
                                 text = "CONFIRMED",
-                                style = MomoType.LabelSmall,
+                                style = MomoTypography.LabelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MomoColors.StatusConfirmed
                             )
@@ -124,40 +136,19 @@ fun TransactionCard(
                 if (txn.senderName != null) {
                     Text(
                         text = "from ${txn.senderName}",
-                        style = MomoType.BodySmall,
+                        style = MomoTypography.BodySmall,
                         color = MomoColors.TextSecondary
                     )
                 }
                 Text(
                     text = txn.reference,
-                    style = MomoType.BodySmall,
+                    style = MomoTypography.BodySmall,
                     color = MomoColors.TextSecondary
                 )
                 Text(
-                    text = "$statusText · $timeStr",
-                    style = MomoType.LabelSmall,
-                    color = statusColor,
-                    fontWeight = if (isClaimed) FontWeight.Medium else FontWeight.Normal
-                )
-                if (txn.confirmedAt != null && !isClaimed) {
-                    Text(
-                        text = "Confirmed at " + SimpleDateFormat("dd MMM HH:mm", Locale.US).format(Date(txn.confirmedAt)),
-                        style = MomoType.LabelSmall,
-                        color = MomoColors.StatusConfirmed
-                    )
-                }
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = visual.icon,
-                    contentDescription = statusText,
-                    tint = statusColor
-                )
-                Text(
-                    text = statusText,
-                    style = MomoType.LabelSmall,
-                    color = statusColor,
-                    fontWeight = FontWeight.Bold
+                    text = timeStr,
+                    style = MomoTypography.LabelSmall,
+                    color = MomoColors.TextTertiary
                 )
             }
         }

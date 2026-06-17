@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 enum class StepState {
     COMPLETED, ACTIVE, PENDING
@@ -60,7 +60,7 @@ fun StepIndicator(
             ) {
                 Text(
                     text = label,
-                    style = MomoType.LabelSmall,
+                    style = MomoTypography.LabelSmall,
                     fontWeight = FontWeight.Bold,
                     color = color
                 )

@@ -1,5 +1,8 @@
 package com.momobridge.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,16 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,32 +43,33 @@ import com.momobridge.ui.components.EmptyState
 import com.momobridge.ui.components.GoldOutlineButton
 import com.momobridge.ui.components.SectionHeader
 import com.momobridge.ui.components.SkeletonList
+import com.momobridge.ui.components.StatusBadge
 import com.momobridge.ui.components.TransactionCard
 import com.momobridge.ui.components.TransactionDetailDialog
 import com.momobridge.ui.theme.MomoColors
-import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     onNavigateToTransactions: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val totalCount by viewModel.totalCount.collectAsStateWithLifecycle()
     val pendingCount by viewModel.pendingCount.collectAsStateWithLifecycle()
     val confirmedCount by viewModel.confirmedCount.collectAsStateWithLifecycle()
+    val offsetPx = with(LocalDensity.current) { 24.dp.toPx().toInt() }
     val failedCount by viewModel.failedCount.collectAsStateWithLifecycle()
     val expiredCount by viewModel.expiredCount.collectAsStateWithLifecycle()
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
     val selectedTransaction by viewModel.selectedTransaction.collectAsStateWithLifecycle()
     val ownerName = viewModel.ownerName
     val scanningHistorical by viewModel.scanningHistorical.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
-    val isEmpty = transactions.isEmpty() && !scanningHistorical
+    val isEmpty = transactions.isEmpty() && !scanningHistorical && !isLoading
 
     // Detail dialog
     selectedTransaction?.let { txn ->
@@ -98,31 +100,26 @@ fun DashboardScreen(
                     )
                     Spacer(modifier = Modifier.width(MomoSpacing.Sm))
                     Text(
-                        text = if (ownerName.isNotBlank()) "Hey, $ownerName" else "MoMo Bridge",
-                        style = MomoType.TitleLarge,
+                        text = "MoMo Bridge",
+                        style = MomoTypography.TitleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MomoColors.GroundMedium
-            ),
-            actions = {
-                Text(
-                    text = "Settings",
-                    color = MomoColors.Gold,
-                    style = MomoType.LabelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .clickable { onNavigateToSettings() }
-                        .padding(MomoSpacing.Lg)
-                )
-            }
+            )
         )
 
-        if (isEmpty) {
+        if (isLoading) {
+            SkeletonList(
+                count = 5,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = MomoSpacing.Lg)
+            )
+        } else if (isEmpty) {
             EmptyState(
-                icon = Icons.Default.Inbox,
                 title = "No transactions yet",
                 subtitle = "Transactions will appear here when SMS payments are received.",
                 modifier = Modifier.weight(1f)
@@ -134,16 +131,28 @@ fun DashboardScreen(
                     .padding(horizontal = MomoSpacing.Lg),
                 verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
             ) {
-                // Summary card
+                // Status badges row
                 item {
                     Spacer(modifier = Modifier.height(MomoSpacing.Sm))
-                    SummaryCard(
-                        totalCount = totalCount,
-                        confirmedCount = confirmedCount,
-                        pendingCount = pendingCount,
-                        failedCount = failedCount,
-                        expiredCount = expiredCount
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
+                    ) {
+                        StatusBadge(
+                            icon = Icons.Default.HourglassEmpty,
+                            label = "Pending",
+                            count = pendingCount,
+                            color = MomoColors.StatusPending,
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatusBadge(
+                            icon = Icons.Default.CheckCircle,
+                            label = "Confirmed",
+                            count = confirmedCount,
+                            color = MomoColors.StatusConfirmed,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
                 // Historical scan in progress
@@ -163,7 +172,7 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.width(MomoSpacing.Sm))
                             Text(
                                 text = "Scanning inbox for past transactions...",
-                                style = MomoType.BodySmall,
+                                style = MomoTypography.BodySmall,
                                 color = MomoColors.TextSecondary
                             )
                         }
@@ -176,14 +185,31 @@ fun DashboardScreen(
                     SectionHeader(title = "Recent Transactions")
                 }
 
-                items(transactions.take(20)) { txn ->
-                    TransactionCard(
-                        txn = txn,
-                        onClick = { viewModel.selectTransaction(txn) }
-                    )
+                itemsIndexed(transactions.take(10)) { index, txn ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = slideInVertically(
+                            initialOffsetY = { offsetPx },
+                            animationSpec = androidx.compose.animation.core.tween(
+                                durationMillis = 350,
+                                delayMillis = index * 50,
+                                easing = com.momobridge.ui.theme.MomoMotion.EaseOutExpo
+                            )
+                        ) + fadeIn(
+                            animationSpec = androidx.compose.animation.core.tween(
+                                durationMillis = 350,
+                                delayMillis = index * 50
+                            )
+                        )
+                    ) {
+                        TransactionCard(
+                            txn = txn,
+                            onClick = { viewModel.selectTransaction(txn) }
+                        )
+                    }
                 }
 
-                if (transactions.size > 20) {
+                if (transactions.size > 10) {
                     item {
                         Spacer(modifier = Modifier.height(MomoSpacing.Sm))
                         GoldOutlineButton(
@@ -198,7 +224,7 @@ fun DashboardScreen(
                         Text(
                             text = "View all transactions",
                             color = MomoColors.Gold,
-                            style = MomoType.BodyMedium,
+                            style = MomoTypography.BodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier
                                 .clickable { onNavigateToTransactions() }
@@ -209,77 +235,5 @@ fun DashboardScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SummaryCard(
-    totalCount: Int,
-    confirmedCount: Int,
-    pendingCount: Int,
-    failedCount: Int,
-    expiredCount: Int
-) {
-    Card(
-        shape = MomoShapes.CardShape,
-        colors = CardDefaults.cardColors(containerColor = MomoColors.GroundMedium)
-    ) {
-        Column(modifier = Modifier.padding(MomoSpacing.Lg)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Text(
-                    text = totalCount.toString(),
-                    style = MomoType.DisplayLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MomoColors.TextPrimary
-                )
-                Spacer(modifier = Modifier.width(MomoSpacing.Sm))
-                Text(
-                    text = "Total Transactions",
-                    style = MomoType.BodyMedium,
-                    color = MomoColors.TextSecondary,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(MomoSpacing.Md))
-            HorizontalDivider(color = MomoColors.BorderSubtle)
-            Spacer(modifier = Modifier.height(MomoSpacing.Md))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatLabel("Confirmed", confirmedCount, MomoColors.StatusConfirmed)
-                StatLabel("Pending", pendingCount, MomoColors.StatusPending)
-                StatLabel("Failed", failedCount, MomoColors.StatusFailed)
-            }
-            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                StatLabel("Expired", expiredCount, MomoColors.StatusExpired)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatLabel(label: String, count: Int, color: androidx.compose.ui.graphics.Color) {
-    Column {
-        Text(
-            text = count.toString(),
-            style = MomoType.TitleMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Text(
-            text = label,
-            style = MomoType.LabelSmall,
-            color = MomoColors.TextTertiary
-        )
     }
 }

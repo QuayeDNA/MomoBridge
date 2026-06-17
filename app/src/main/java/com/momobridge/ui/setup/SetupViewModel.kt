@@ -11,6 +11,7 @@ import com.momobridge.data.repository.SmsSourceRepository
 import com.momobridge.di.RegularPrefs
 import com.momobridge.domain.model.SmsSource
 import com.momobridge.domain.parser.AutoDetectUtils
+import com.momobridge.domain.usecase.ScanInboxUseCase
 import com.momobridge.service.RelayClient
 import com.momobridge.service.RelayConnectionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -57,7 +58,8 @@ class SetupViewModel @Inject constructor(
     @RegularPrefs private val prefs: SharedPreferences,
     private val smsSourceRepository: SmsSourceRepository,
     private val relayClient: RelayClient,
-    private val apiKeyRepository: ApiKeyRepository
+    private val apiKeyRepository: ApiKeyRepository,
+    private val scanInboxUseCase: ScanInboxUseCase
 ) : ViewModel() {
 
     val connectionState = relayClient.connectionState
@@ -270,30 +272,12 @@ class SetupViewModel @Inject constructor(
     private fun scanInbox() {
         _uiState.value = _uiState.value.copy(scanningInbox = true)
         viewModelScope.launch {
-            val senders = withContext(Dispatchers.IO) {
-                val map = mutableMapOf<String, Int>()
-                try {
-                    val uri = Uri.parse("content://sms/inbox")
-                    val projection = arrayOf(
-                        Telephony.TextBasedSmsColumns.ADDRESS
-                    )
-                    val cursor = context.contentResolver.query(
-                        uri, projection, null, null,
-                        "${Telephony.TextBasedSmsColumns.DATE} DESC"
-                    )
-                    cursor?.use {
-                        while (it.moveToNext()) {
-                            val address = it.getString(0) ?: continue
-                            map[address] = (map[address] ?: 0) + 1
-                        }
-                    }
-                } catch (_: Exception) { }
-                map.entries
-                    .filter { it.value >= 2 }
-                    .sortedByDescending { it.value }
-                    .take(20)
-                    .map { ScannedSenderInfo(it.key, it.value) }
+            val results = withContext(Dispatchers.IO) {
+                scanInboxUseCase.scanSenders(context.contentResolver, limit = 20)
             }
+            val senders = results
+                .filter { it.totalMessages >= 2 }
+                .map { ScannedSenderInfo(it.senderAddress, it.totalMessages) }
             _uiState.value = _uiState.value.copy(
                 scannedSenders = senders,
                 scanningInbox = false

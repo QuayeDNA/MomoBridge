@@ -6,7 +6,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-object MomoType {
+object MomoTypography {
     val DisplayLarge = TextStyle(
         fontWeight = FontWeight.Bold,
         fontSize = 34.sp,
@@ -81,16 +81,16 @@ object MomoType {
 }
 
 val MomoMaterialTypography = Typography(
-    displayLarge = MomoType.DisplayLarge,
-    displayMedium = MomoType.DisplayMedium,
-    headlineLarge = MomoType.TitleLarge,
-    headlineMedium = MomoType.TitleLarge,
-    titleLarge = MomoType.TitleLarge,
-    titleMedium = MomoType.TitleMedium,
-    titleSmall = MomoType.TitleSmall,
-    bodyLarge = MomoType.BodyLarge,
-    bodyMedium = MomoType.BodyMedium,
-    bodySmall = MomoType.BodySmall,
-    labelLarge = MomoType.LabelLarge,
-    labelSmall = MomoType.LabelSmall
+    displayLarge = MomoTypography.DisplayLarge,
+    displayMedium = MomoTypography.DisplayMedium,
+    headlineLarge = MomoTypography.TitleLarge,
+    headlineMedium = MomoTypography.TitleLarge,
+    titleLarge = MomoTypography.TitleLarge,
+    titleMedium = MomoTypography.TitleMedium,
+    titleSmall = MomoTypography.TitleSmall,
+    bodyLarge = MomoTypography.BodyLarge,
+    bodyMedium = MomoTypography.BodyMedium,
+    bodySmall = MomoTypography.BodySmall,
+    labelLarge = MomoTypography.LabelLarge,
+    labelSmall = MomoTypography.LabelSmall
 )

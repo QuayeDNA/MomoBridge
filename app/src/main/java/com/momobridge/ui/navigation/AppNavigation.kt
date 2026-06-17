@@ -187,15 +187,7 @@ private fun MainTabScreen(
                             restoreState = true
                         }
                     },
-                    onNavigateToSettings = {
-                        tabNavController.navigate(Screen.Settings.route) {
-                            popUpTo(tabNavController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+
                 )
             }
             composable(Screen.Transactions.route) {

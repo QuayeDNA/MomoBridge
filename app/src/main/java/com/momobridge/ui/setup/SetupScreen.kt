@@ -57,7 +57,7 @@ import com.momobridge.ui.components.SectionSubtext
 import com.momobridge.ui.components.StepIndicator
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +120,7 @@ private fun ProfileStep(state: SetupUiState, viewModel: SetupViewModel) {
         Spacer(modifier = Modifier.height(MomoSpacing.Xl))
         Text(
             text = "👋",
-            style = MomoType.TitleLarge
+            style = MomoTypography.TitleLarge
         )
         Spacer(modifier = Modifier.height(MomoSpacing.Lg))
         SectionHeader(title = "Welcome to MoMo Bridge")
@@ -140,7 +140,7 @@ private fun ProfileStep(state: SetupUiState, viewModel: SetupViewModel) {
             Text(
                 text = state.error!!,
                 color = MomoColors.StatusFailed,
-                style = MomoType.BodySmall
+                style = MomoTypography.BodySmall
             )
         }
 
@@ -209,7 +209,7 @@ private fun ApiKeysStep(state: SetupUiState, viewModel: SetupViewModel) {
                         Spacer(Modifier.width(MomoSpacing.Sm))
                         Text(
                             text = keyInfo.label,
-                            style = MomoType.BodyMedium,
+                            style = MomoTypography.BodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MomoColors.TextPrimary,
                             modifier = Modifier.weight(1f)
@@ -219,7 +219,7 @@ private fun ApiKeysStep(state: SetupUiState, viewModel: SetupViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = keyInfo.keyValue,
-                            style = MomoType.BodySmall,
+                            style = MomoTypography.BodySmall,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = MomoColors.TextSecondary,
@@ -249,7 +249,7 @@ private fun ApiKeysStep(state: SetupUiState, viewModel: SetupViewModel) {
             Text(
                 text = "+ Add another store",
                 color = MomoColors.Gold,
-                style = MomoType.LabelSmall,
+                style = MomoTypography.LabelSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable {
                     viewModel.updateNewKeyLabel("")
@@ -262,7 +262,7 @@ private fun ApiKeysStep(state: SetupUiState, viewModel: SetupViewModel) {
             Text(
                 text = state.error!!,
                 color = MomoColors.StatusFailed,
-                style = MomoType.BodySmall
+                style = MomoTypography.BodySmall
             )
         }
 
@@ -307,13 +307,13 @@ private fun RelayConnectStep(state: SetupUiState, viewModel: SetupViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Shared Relay",
-                        style = MomoType.BodyMedium,
+                        style = MomoTypography.BodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MomoColors.TextPrimary
                     )
                     Text(
                         text = state.relayUrl,
-                        style = MomoType.BodySmall,
+                        style = MomoTypography.BodySmall,
                         color = MomoColors.TextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -344,7 +344,7 @@ private fun RelayConnectStep(state: SetupUiState, viewModel: SetupViewModel) {
                 com.momobridge.service.RelayConnectionStatus.RECONNECTING -> "Reconnecting..."
                 com.momobridge.service.RelayConnectionStatus.DISCONNECTED -> "Not connected"
             },
-            style = MomoType.BodySmall,
+            style = MomoTypography.BodySmall,
             color = when (relayState.status) {
                 com.momobridge.service.RelayConnectionStatus.CONNECTED -> MomoColors.StatusConfirmed
                 else -> MomoColors.TextTertiary
@@ -355,7 +355,7 @@ private fun RelayConnectStep(state: SetupUiState, viewModel: SetupViewModel) {
         Text(
             text = if (showAdvanced) "Hide advanced" else "Use a different relay server?",
             color = MomoColors.Gold,
-            style = MomoType.LabelSmall,
+            style = MomoTypography.LabelSmall,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clickable { showAdvanced = !showAdvanced }
         )
@@ -371,7 +371,7 @@ private fun RelayConnectStep(state: SetupUiState, viewModel: SetupViewModel) {
             Spacer(modifier = Modifier.height(MomoSpacing.Sm))
             Text(
                 text = "Point to your own relay server if you're self-hosting.",
-                style = MomoType.BodySmall,
+                style = MomoTypography.BodySmall,
                 color = MomoColors.TextTertiary
             )
         }
@@ -381,7 +381,7 @@ private fun RelayConnectStep(state: SetupUiState, viewModel: SetupViewModel) {
             Text(
                 text = state.connectionError!!,
                 color = MomoColors.StatusFailed,
-                style = MomoType.BodySmall
+                style = MomoTypography.BodySmall
             )
         }
 
@@ -429,7 +429,7 @@ private fun SenderConfigStep(state: SetupUiState, viewModel: SetupViewModel) {
                 Spacer(modifier = Modifier.width(MomoSpacing.Md))
                 Text(
                     text = "Scanning SMS inbox...",
-                    style = MomoType.BodyMedium,
+                    style = MomoTypography.BodyMedium,
                     color = MomoColors.TextSecondary
                 )
             }
@@ -462,7 +462,7 @@ private fun SenderConfigStep(state: SetupUiState, viewModel: SetupViewModel) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = sender.address,
-                            style = MomoType.BodyMedium,
+                            style = MomoTypography.BodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MomoColors.TextPrimary,
                             maxLines = 1,
@@ -470,7 +470,7 @@ private fun SenderConfigStep(state: SetupUiState, viewModel: SetupViewModel) {
                         )
                         Text(
                             text = "${sender.messageCount} messages found",
-                            style = MomoType.LabelSmall,
+                            style = MomoTypography.LabelSmall,
                             color = MomoColors.TextSecondary
                         )
                     }
@@ -481,7 +481,7 @@ private fun SenderConfigStep(state: SetupUiState, viewModel: SetupViewModel) {
         if (state.scannedSenders.isEmpty() && !state.scanningInbox) {
             Text(
                 text = "No SMS senders found in your inbox. You can configure senders later in Settings.",
-                style = MomoType.BodySmall,
+                style = MomoTypography.BodySmall,
                 color = MomoColors.TextTertiary,
                 modifier = Modifier.padding(vertical = MomoSpacing.Lg)
             )

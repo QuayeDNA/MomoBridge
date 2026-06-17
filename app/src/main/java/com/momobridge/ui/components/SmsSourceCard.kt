@@ -1,12 +1,17 @@
 package com.momobridge.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -14,31 +19,40 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.momobridge.domain.model.SmsSource
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SmsSourceCard(
     source: SmsSource,
     onToggle: (Boolean) -> Unit,
     onConfigure: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = onConfigure,
+    onLongClick: () -> Unit = onDelete
 ) {
+    val isConfigured = source.parsingRule != null
     Card(
         shape = MomoShapes.CardShape,
         colors = CardDefaults.cardColors(containerColor = MomoColors.GroundMedium),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
         Row(
             modifier = Modifier
@@ -46,31 +60,28 @@ fun SmsSourceCard(
                 .padding(MomoSpacing.CardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Switch(
-                checked = source.enabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MomoColors.Gold,
-                    checkedTrackColor = MomoColors.Gold.copy(alpha = 0.3f),
-                    uncheckedThumbColor = MomoColors.TextTertiary,
-                    uncheckedTrackColor = MomoColors.GroundElevated
-                )
+            // Health dot
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(if (isConfigured) MomoColors.StatusConfirmed else MomoColors.TextTertiary)
             )
             Spacer(modifier = Modifier.width(MomoSpacing.Sm))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = source.label,
-                    style = MomoType.BodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MomoTypography.TitleSmall,
+                    fontWeight = FontWeight.Medium,
                     color = MomoColors.TextPrimary
                 )
                 Text(
-                    text = if (source.parsingRule != null) "Parsing configured" else source.senderAddress,
-                    style = MomoType.LabelSmall,
-                    color = if (source.parsingRule != null) MomoColors.StatusConfirmed else MomoColors.TextTertiary
+                    text = if (isConfigured) "Configured" else source.senderAddress,
+                    style = MomoTypography.LabelSmall,
+                    color = if (isConfigured) MomoColors.StatusConfirmed else MomoColors.TextTertiary
                 )
             }
-            if (source.parsingRule != null) {
+            if (isConfigured) {
                 IconButton(onClick = onConfigure) {
                     Icon(
                         Icons.Default.Edit,

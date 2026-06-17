@@ -235,6 +235,8 @@ private val MomoDarkScheme = darkColorScheme(
 
 ## 3. Component Library
 
+> **Note:** The current DESIGN.md describes a 2-step, 3-tab architecture that predates the actual 4-step, 4-tab implementation. For the authoritative architecture, refer to [AGENTS.md](AGENTS.md). This section documents the component specs which remain accurate.
+
 ### GoldButton (Primary CTA)
 - Filled gold pill shape (`ButtonShape`)
 - Background: `MomoColors.Gold`, text: `MomoColors.OnGold`
@@ -392,9 +394,28 @@ fun TimestampText(timestamp: Long, verbose: Boolean = false) {
 
 ### 4b. Setup Screen
 
-**Layout (2-step wizard):**
+**Layout (4-step wizard):**
 
-**Step 1 — Generate API Key:**
+**Step 1 — Profile:**
+```
+┌──────────────────────────────┐
+│  ● ○ ○ ○  Step 1 of 4        │
+│                              │
+│  Welcome to MoMo Bridge      │
+│                              │
+│  Enter your name to          │
+│  personalize your dashboard. │
+│                              │
+│  Your Name                   │
+│  ┌─────────────────────────┐ │
+│  │ Bridget Baidoo         │ │
+│  └─────────────────────────┘ │
+│                              │
+│  [   Save & Continue     ]   │
+└──────────────────────────────┘
+```
+
+**Step 2 — Generate API Key:**
 ```
 ┌──────────────────────────────┐
 │  ● ○  Step 1 of 2            │
@@ -413,10 +434,10 @@ fun TimestampText(timestamp: Long, verbose: Boolean = false) {
 └──────────────────────────────┘
 ```
 
-**Step 2 — Connect to Relay:**
+**Step 3 — Connect to Relay:**
 ```
 ┌──────────────────────────────┐
-│  ✓ ●  Step 2 of 2            │
+│  ✓ ✓ ● ○  Step 3 of 4        │
 │                              │
 │  Relay Server                │
 │                              │
@@ -427,13 +448,32 @@ fun TimestampText(timestamp: Long, verbose: Boolean = false) {
 │  │ https://momo-relay...   │ │
 │  └─────────────────────────┘ │
 │                              │
-│  [   Connect & Finish    ]   │
+│  [   Connect & Continue  ]   │
+└──────────────────────────────┘
+```
+
+**Step 4 — Monitor Senders:**
+```
+┌──────────────────────────────┐
+│  ✓ ✓ ✓ ○  Step 4 of 4        │
+│                              │
+│  Monitor Senders             │
+│                              │
+│  Scan your inbox to auto-    │
+│  detect MoMo SMS senders.   │
+│                              │
+│  [   Scan SMS Inbox      ]   │
+│                              │
+│  or add manually:            │
+│  [   Skip & Finish       ]   │
 └──────────────────────────────┘
 ```
 
 **States:**
-- **Step 1:** API key generated and displayed; copy button
-- **Step 2:** Relay URL input; "Connect" button validates by trying WebSocket handshake
+- **Step 1:** Profile name entry; save continues
+- **Step 2:** API key generated and displayed; copy button
+- **Step 3:** Relay URL input; "Connect" button validates by trying WebSocket handshake
+- **Step 4:** Scan inbox for known senders or skip
 - **Error:** Red border on relay field + helper text
 - **Success:** CTA morphs to green checkmark, auto-navigates to Dashboard
 
@@ -664,11 +704,15 @@ Phase 7 — Polish
 ```
 SHOW SPLASH SCREEN
   │
-  ├── IF not configured → SETUP STEP 1 (Generate API Key)
+  ├── IF not configured → SETUP STEP 1 (Enter name)
   │                           │
-  │                           └── SETUP STEP 2 (Enter Relay URL)
+  │                           └── SETUP STEP 2 (Generate API Key)
   │                                   │
-  │                                   └── DASHBOARD (Main app)
+  │                                   └── SETUP STEP 3 (Connect to Relay)
+  │                                           │
+  │                                           └── SETUP STEP 4 (Monitor Senders)
+  │                                                   │
+  │                                                   └── DASHBOARD (Main app)
   │
   └── IF configured → Relay auto-connects
                         │
@@ -684,18 +728,17 @@ SHOW SPLASH SCREEN
 
 ### 10b. Tabbed Bottom Navigation
 
-After splash/setup, the main app uses a 3-tab bottom navigation bar:
+After splash/setup, the main app uses a 4-tab bottom navigation bar:
 
 ```
-┌──────────────────────────────────────────┐
-│                                          │
-│              [Screen Content]             │
-│                                          │
-│                                          │
-│                                          │
-├──────────────────────────────────────────┤
-│   📊 Dashboard  │  📋 Txns  │  ⚙ Settings │
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                                                      │
+│              [Screen Content]                         │
+│                                                      │
+│                                                      │
+├──────────────────────────────────────────────────────┤
+│  📊 Dashboard  │  📋 Txns  │  🔑 Keys  │  ⚙ Settings │
+└──────────────────────────────────────────────────────┘
 ```
 
 **Tab bar properties:**
@@ -703,13 +746,14 @@ After splash/setup, the main app uses a 3-tab bottom navigation bar:
 - Active tab: gold icon + gold text, `LabelSmall` bold
 - Inactive tab: `TextTertiary` icon + text
 - Height: 64dp (56dp content + 8dp safe area)
-- Icons: Dashboard (Home), Transactions (Receipt), Settings (Settings)
+- Icons: Dashboard (Home), Transactions (Receipt), Keys (VpnKey), Settings (Settings)
+- Keys tab shows active key count badge
 
 **Tab behaviors:**
 - Initial tab: Dashboard
 - Tapping active tab: scroll to top
 - Navigation bar hidden on sub-screens (Sender Config, Help, etc.)
-- Routes: `tab_dashboard`, `tab_transactions`, `tab_settings`
+- Routes: `tab_dashboard`, `tab_transactions`, `tab_apikeys`, `tab_settings`
 
 ### 10c. Updated Route Map
 
@@ -717,8 +761,10 @@ After splash/setup, the main app uses a 3-tab bottom navigation bar:
 SPLASH (/)
   │
   ├── SETUP (/setup) [no bottom nav]
-  │     ├── Step 1: Generate API Key
-  │     └── Step 2: Enter Relay URL
+  │     ├── Step 1: Profile (name entry)
+  │     ├── Step 2: Generate API Key
+  │     ├── Step 3: Enter Relay URL
+  │     └── Step 4: Monitor Senders
   │
   └── MAIN APP [bottom nav shown]
         ├── TAB_DASHBOARD (/main/dashboard)
@@ -726,6 +772,9 @@ SPLASH (/)
         │
         ├── TAB_TRANSACTIONS (/main/transactions)
         │     └── [sub] Transaction Detail (bottom sheet)
+        │
+        ├── TAB_APIKEYS (/main/apikeys)
+        │     └── [sub] Key Detail (bottom sheet)
         │
         └── TAB_SETTINGS (/main/settings) [scrollable]
               ├── Sender Config (/sender_config/{addr}/{label}) — no bottom nav
@@ -757,10 +806,10 @@ SPLASH (/)
 - 2s minimum display, exits when init check passes
 - Auto-navigates to Setup (if not configured) or Tabbed Main
 
-#### Expanded Setup — Step 1: API Key Generation
+#### Expanded Setup — Step 2: API Key Generation
 ```
 ┌──────────────────────────────┐
-│  ● ○  Step 1 of 2            │  ← StepIndicator
+│  ● ○  Step 2 of 4            │  ← StepIndicator
 │                              │
 │  Your API Key                │  ← TitleLarge
 │                              │
@@ -781,10 +830,10 @@ SPLASH (/)
 └──────────────────────────────┘
 ```
 
-#### Expanded Setup — Step 2: Relay Connection
+#### Expanded Setup — Step 3: Relay Connection
 ```
 ┌──────────────────────────────┐
-│  ✓ ●  Step 2 of 2            │  ← StepIndicator (step 1 green)
+│  ✓ ✓ ● ○  Step 3 of 4        │  ← StepIndicator (steps 1-2 green)
 │                              │
 │  Connect to Relay            │  ← TitleLarge
 │                              │
@@ -927,11 +976,15 @@ Toast implementation uses Compose `SnackbarHost` with custom gold/red/green colo
 ```
 SPLASH
   │
-  ├──(first launch)──→ SETUP (step 1 — API Key)
+  ├──(first launch)──→ SETUP (step 1 — Profile)
   │                       │
-  │                       └──→ SETUP (step 2 — Relay URL)
-  │                              │
-  │                              └──→ MAIN
+  │                       ├──→ SETUP (step 2 — API Key)
+  │                       │       │
+  │                       │       └──→ SETUP (step 3 — Relay URL)
+  │                       │               │
+  │                       │               └──→ SETUP (step 4 — Senders)
+  │                       │                       │
+  │                       │                       └──→ MAIN
   │
   └──(returning)──→ MAIN
                       │
@@ -939,6 +992,8 @@ SPLASH
                       │     └──→ TRANSACTIONS (via "View All" link)
                       │
                       ├── TAB: TRANSACTIONS
+                      │
+                      ├── TAB: API KEYS
                       │
                       └── TAB: SETTINGS
                             ├──→ SENDER CONFIG (no nav bar)
@@ -961,14 +1016,17 @@ SPLASH
 | `data/repository/TransactionRepository.kt` | Modify | Remove upload methods, add confirmTransaction() |
 | `di/AppModule.kt` | Modify | Add API key + relay URL prefs |
 | `service/SmsListenerService.kt` | Modify | Remove store iteration |
-| `ui/setup/SetupScreen.kt` | Modify | API key gen + relay URL wizard |
-| `ui/setup/SetupViewModel.kt` | Modify | Key generation + WebSocket handshake |
+| `ui/setup/SetupScreen.kt` | Modify | 4-step wizard: profile, API key, relay, senders |
+| `ui/setup/SetupViewModel.kt` | Modify | 4-step flow management |
 | `ui/dashboard/DashboardScreen.kt` | Modify | Connection dot, remove sync |
 | `ui/dashboard/DashboardViewModel.kt` | Modify | Remove upload/sync, add WS status |
 | `ui/settings/SettingsScreen.kt` | Modify | Relay status + API key display |
 | `ui/settings/SettingsViewModel.kt` | Modify | Remove store methods |
 | `ui/transactions/TransactionsScreen.kt` | Modify | Update filter chips |
-| `ui/navigation/AppNavigation.kt` | Modify | Minor route updates |
+| `ui/navigation/AppNavigation.kt` | Modify | 4-tab route structure |
+| `ui/apikeys/ApiKeysScreen.kt` | Create | Dedicated keys management tab |
+| `ui/navigation/BottomNavBar.kt` | Create | 4-tab bottom bar with badge |
+| `ui/navigation/MainTabViewModel.kt` | Create | Tab state + key count badge |
 | `receiver/BootReceiver.kt` | Modify | Start RelayClient on boot |
 | `MomoBridgeApp.kt` | Modify | Start RelayClient on app start |
 | **Delete** | `BridgeApiService.kt` | Remove |

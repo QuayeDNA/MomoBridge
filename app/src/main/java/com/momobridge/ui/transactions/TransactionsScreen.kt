@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -31,11 +29,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.ui.components.EmptyState
+import com.momobridge.ui.components.GoldOutlineButton
 import com.momobridge.ui.components.TransactionCard
+import com.momobridge.ui.components.TransactionDetailDialog
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +50,9 @@ fun TransactionsScreen(
     val confirmedCount by viewModel.confirmedCount.collectAsStateWithLifecycle()
     val failedCount by viewModel.failedCount.collectAsStateWithLifecycle()
     val expiredCount by viewModel.expiredCount.collectAsStateWithLifecycle()
+    val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
+    val selectedTransaction by viewModel.selectedTransaction.collectAsStateWithLifecycle()
+    val totalCount by viewModel.totalCount.collectAsStateWithLifecycle()
 
     val statusFilters = listOf(
         Triple("Pending", SmsTransactionEntity.PENDING, pendingCount),
@@ -58,10 +61,18 @@ fun TransactionsScreen(
         Triple("Expired", SmsTransactionEntity.EXPIRED, expiredCount)
     )
 
+    // Detail dialog
+    selectedTransaction?.let { txn ->
+        TransactionDetailDialog(
+            txn = txn,
+            onDismiss = viewModel::dismissTransaction
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = {
-                Text("Transaction Log", style = MomoType.TitleLarge, fontWeight = FontWeight.Bold)
+                Text("Transaction Log", style = MomoTypography.TitleLarge, fontWeight = FontWeight.Bold)
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MomoColors.GroundMedium
@@ -82,7 +93,7 @@ fun TransactionsScreen(
                     viewModel.clearFilter()
                     viewModel.clearKeyLabelFilter()
                 },
-                label = { Text("All", style = MomoType.LabelSmall) },
+                label = { Text("All ($totalCount)", style = MomoTypography.LabelSmall) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MomoColors.Highlight,
                     selectedLabelColor = MomoColors.Gold
@@ -93,7 +104,7 @@ fun TransactionsScreen(
                 FilterChip(
                     selected = statusFilter == status,
                     onClick = { viewModel.setFilter(status) },
-                    label = { Text("$label ($count)", style = MomoType.LabelSmall) },
+                    label = { Text("$label ($count)", style = MomoTypography.LabelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MomoColors.Highlight,
                         selectedLabelColor = MomoColors.Gold
@@ -103,7 +114,7 @@ fun TransactionsScreen(
             }
         }
 
-        // Store filter row (only if there are keys)
+        // Store filter row (only if there are labels from transactions)
         if (keyLabels.isNotEmpty()) {
             Spacer(modifier = Modifier.height(MomoSpacing.Sm))
             HorizontalDivider(
@@ -122,7 +133,7 @@ fun TransactionsScreen(
                     FilterChip(
                         selected = keyLabelFilter == label,
                         onClick = { viewModel.setKeyLabelFilter(label) },
-                        label = { Text(label, style = MomoType.LabelSmall) },
+                        label = { Text(label, style = MomoTypography.LabelSmall) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MomoColors.Highlight,
                             selectedLabelColor = MomoColors.Gold
@@ -137,7 +148,6 @@ fun TransactionsScreen(
 
         if (transactions.isEmpty()) {
             EmptyState(
-                icon = Icons.Default.Inbox,
                 title = "No transactions",
                 subtitle = if (statusFilter != null || keyLabelFilter != null) "No transactions match the selected filters." else "Transactions will appear here when SMS payments are received.",
                 modifier = Modifier.fillMaxSize()
@@ -150,10 +160,25 @@ fun TransactionsScreen(
                 verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
             ) {
                 items(transactions) { txn ->
-                    TransactionCard(txn = txn, showFullDate = true)
+                    TransactionCard(
+                        txn = txn,
+                        showFullDate = true,
+                        onClick = { viewModel.selectTransaction(txn) }
+                    )
                 }
-                item {
-                    Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+                if (hasMore) {
+                    item {
+                        Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+                        GoldOutlineButton(
+                            text = "Load More",
+                            onClick = viewModel::loadMore
+                        )
+                        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+                    }
+                } else {
+                    item {
+                        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+                    }
                 }
             }
         }

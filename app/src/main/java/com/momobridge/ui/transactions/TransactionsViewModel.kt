@@ -2,9 +2,7 @@ package com.momobridge.ui.transactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.momobridge.data.local.ApiKeyEntity
 import com.momobridge.data.local.SmsTransactionEntity
-import com.momobridge.data.repository.ApiKeyRepository
 import com.momobridge.data.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,9 +15,12 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TransactionsViewModel @Inject constructor(
-    repository: TransactionRepository,
-    apiKeyRepository: ApiKeyRepository
+    repository: TransactionRepository
 ) : ViewModel() {
+
+    companion object {
+        private const val PAGE_SIZE = 20
+    }
 
     private val _statusFilter = MutableStateFlow<String?>(null)
     val statusFilter: StateFlow<String?> = _statusFilter
@@ -27,21 +28,36 @@ class TransactionsViewModel @Inject constructor(
     private val _keyLabelFilter = MutableStateFlow<String?>(null)
     val keyLabelFilter: StateFlow<String?> = _keyLabelFilter
 
-    val keyLabels: StateFlow<List<String>> = apiKeyRepository.observeActive()
-        .map { keys -> keys.map { it.label } }
+    private val _currentPage = MutableStateFlow(1)
+    val currentPage: StateFlow<Int> = _currentPage
+
+    val keyLabels: StateFlow<List<String>> = repository.observeDistinctKeyLabels()
+        .map { labels -> labels.filterNotNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val allTransactions: StateFlow<List<SmsTransactionEntity>> = repository.observeTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val totalCount: StateFlow<Int> = repository.observeTotalCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     val transactions: StateFlow<List<SmsTransactionEntity>> = combine(
-        allTransactions, _statusFilter, _keyLabelFilter
-    ) { all, statusF, keyF ->
+        allTransactions, _statusFilter, _keyLabelFilter, _currentPage
+    ) { all, statusF, keyF, page ->
         var filtered = all
         if (statusF != null) filtered = filtered.filter { it.status == statusF }
         if (keyF != null) filtered = filtered.filter { it.claimedByKeyLabel == keyF }
-        filtered
+        filtered.take(PAGE_SIZE * page)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hasMore: StateFlow<Boolean> = combine(
+        allTransactions, _statusFilter, _keyLabelFilter, _currentPage
+    ) { all, statusF, keyF, page ->
+        var filtered = all
+        if (statusF != null) filtered = filtered.filter { it.status == statusF }
+        if (keyF != null) filtered = filtered.filter { it.claimedByKeyLabel == keyF }
+        filtered.size > PAGE_SIZE * page
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val pendingCount: StateFlow<Int> = repository.observePendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -52,19 +68,38 @@ class TransactionsViewModel @Inject constructor(
     val expiredCount: StateFlow<Int> = repository.observeExpiredCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    private val _selectedTransaction = MutableStateFlow<SmsTransactionEntity?>(null)
+    val selectedTransaction: StateFlow<SmsTransactionEntity?> = _selectedTransaction
+
+    fun selectTransaction(txn: SmsTransactionEntity) {
+        _selectedTransaction.value = txn
+    }
+
+    fun dismissTransaction() {
+        _selectedTransaction.value = null
+    }
+
+    fun loadMore() {
+        _currentPage.value = _currentPage.value + 1
+    }
+
     fun setFilter(status: String?) {
         _statusFilter.value = if (_statusFilter.value == status) null else status
+        _currentPage.value = 1
     }
 
     fun clearFilter() {
         _statusFilter.value = null
+        _currentPage.value = 1
     }
 
     fun setKeyLabelFilter(label: String?) {
         _keyLabelFilter.value = if (_keyLabelFilter.value == label) null else label
+        _currentPage.value = 1
     }
 
     fun clearKeyLabelFilter() {
         _keyLabelFilter.value = null
+        _currentPage.value = 1
     }
 }

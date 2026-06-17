@@ -105,6 +105,34 @@ fun SkeletonCard(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun SkeletonInput(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "shimmer_input")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_offset_input"
+    )
+
+    val brush = Brush.linearGradient(
+        colors = listOf(ShimmerColor, ShimmerHighlight, ShimmerColor),
+        start = Offset.Zero,
+        end = Offset(x = translateAnim, y = translateAnim)
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(MomoShapes.InputShape)
+            .background(brush)
+    )
+}
+
+@Composable
 fun SkeletonList(
     count: Int = 5,
     modifier: Modifier = Modifier

@@ -101,4 +101,6 @@ class TransactionRepository @Inject constructor(
     fun observeTotalCount(): Flow<Int> = dao.observeTotalCount()
 
     fun observeCountByStatus(status: String): Flow<Int> = dao.observeCountByStatus(status)
+
+    fun observeDistinctKeyLabels(): Flow<List<String>> = dao.observeDistinctKeyLabels()
 }

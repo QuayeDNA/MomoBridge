@@ -3,10 +3,11 @@ package com.momobridge.ui.components
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.momobridge.ui.theme.MomoColors
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -15,11 +16,12 @@ import java.util.Locale
 @Composable
 fun AmountText(
     amount: Double,
+    style: TextStyle = MomoTypography.AmountMono,
     modifier: Modifier = Modifier
 ) {
     Text(
         text = "GH₵${"%.2f".format(amount)}",
-        style = MomoType.AmountMono,
+        style = style,
         fontWeight = FontWeight.Bold,
         color = MomoColors.TextPrimary,
         modifier = modifier
@@ -45,7 +47,7 @@ fun TimestampText(
     val fmt = SimpleDateFormat(formatStr, Locale.US)
     Text(
         text = fmt.format(Date(timestamp)),
-        style = MomoType.LabelSmall,
+        style = MomoTypography.LabelSmall,
         color = MomoColors.TextTertiary,
         modifier = modifier
     )
@@ -68,7 +70,7 @@ fun SectionHeader(
 ) {
     Text(
         text = title,
-        style = MomoType.TitleMedium,
+        style = MomoTypography.TitleMedium,
         fontWeight = FontWeight.SemiBold,
         color = MomoColors.TextPrimary,
         modifier = modifier
@@ -82,7 +84,7 @@ fun SectionSubtext(
 ) {
     Text(
         text = text,
-        style = MomoType.BodySmall,
+        style = MomoTypography.BodySmall,
         color = MomoColors.TextSecondary,
         modifier = modifier
     )

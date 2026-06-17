@@ -31,11 +31,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".SmsDumperActivity"
-            android:exported="true"
-            android:theme="@style/Theme.MomoBridge" />
-
         <receiver
             android:name=".receiver.SmsBroadcastReceiver"
             android:exported="true"

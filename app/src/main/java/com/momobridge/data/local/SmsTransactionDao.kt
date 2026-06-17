@@ -45,4 +45,7 @@ interface SmsTransactionDao {
 
     @Query("DELETE FROM sms_transactions WHERE status = :status AND createdAt < :olderThan")
     suspend fun deleteOldRecords(status: String, olderThan: Long)
+
+    @Query("SELECT DISTINCT claimedByKeyLabel FROM sms_transactions WHERE claimedByKeyLabel IS NOT NULL")
+    fun observeDistinctKeyLabels(): Flow<List<String>>
 }

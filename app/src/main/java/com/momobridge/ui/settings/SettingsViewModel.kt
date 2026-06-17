@@ -1,8 +1,5 @@
 package com.momobridge.ui.settings
 
-import android.content.Context
-import android.net.Uri
-import android.provider.Telephony
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,10 +7,11 @@ import com.momobridge.data.repository.SmsSourceRepository
 import com.momobridge.data.repository.TransactionRepository
 import com.momobridge.di.RegularPrefs
 import com.momobridge.domain.model.SmsSource
-import com.momobridge.domain.parser.SmsParser
+import com.momobridge.domain.usecase.ScanInboxUseCase
 import com.momobridge.service.RelayClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +44,8 @@ class SettingsViewModel @Inject constructor(
     private val smsSourceRepository: SmsSourceRepository,
     private val transactionRepository: TransactionRepository,
     private val relayClient: RelayClient,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val scanInboxUseCase: ScanInboxUseCase
 ) : ViewModel() {
 
     val connectionState = relayClient.connectionState
@@ -119,37 +118,16 @@ class SettingsViewModel @Inject constructor(
     fun scanInbox() {
         _uiState.value = _uiState.value.copy(scanningInbox = true, showScanResults = true)
         viewModelScope.launch {
-            val senders = withContext(Dispatchers.IO) {
-                val map = mutableMapOf<String, ScannedSender>()
-                try {
-                    val uri = Uri.parse("content://sms/inbox")
-                    val projection = arrayOf(
-                        Telephony.TextBasedSmsColumns.ADDRESS,
-                        Telephony.TextBasedSmsColumns.BODY
-                    )
-                    val cursor = context.contentResolver.query(
-                        uri, projection, null, null,
-                        "${Telephony.TextBasedSmsColumns.DATE} DESC"
-                    )
-                    cursor?.use {
-                        while (it.moveToNext()) {
-                            val address = it.getString(0) ?: continue
-                            val body = it.getString(1) ?: continue
-                            val existing = map[address]
-                            if (existing != null) {
-                                map[address] = existing.copy(messageCount = existing.messageCount + 1)
-                            } else {
-                                map[address] = ScannedSender(
-                                    address = address,
-                                    displayName = address,
-                                    messageCount = 1,
-                                    sampleBody = body.take(200)
-                                )
-                            }
-                        }
-                    }
-                } catch (_: Exception) { }
-                map.values.sortedByDescending { it.messageCount }.take(50)
+            val results = withContext(Dispatchers.IO) {
+                scanInboxUseCase.scanSenders(context.contentResolver, limit = 50)
+            }
+            val senders = results.map { r ->
+                ScannedSender(
+                    address = r.senderAddress,
+                    displayName = r.senderAddress,
+                    messageCount = r.totalMessages,
+                    sampleBody = "${r.receivedCount} received, ${r.sentCount} sent, ${r.nonTxCount} other"
+                )
             }
             _uiState.value = _uiState.value.copy(
                 scannedSenders = senders,
@@ -181,10 +159,10 @@ class SettingsViewModel @Inject constructor(
     // ── Historical Transaction Scan ──────────────────────────────────────────
 
     fun scanHistoricalTransactions() {
-        val sources = smsSourceRepository.getSources().filter { it.enabled && it.parsingRule != null }
+        val sources = smsSourceRepository.getSources().filter { it.enabled }
         if (sources.isEmpty()) {
             _uiState.value = _uiState.value.copy(
-                historicalScanResult = "No senders with parsing rules configured. Configure rules first under Monitored Senders."
+                historicalScanResult = "No senders configured. Add senders first under Monitored Senders."
             )
             return
         }
@@ -194,50 +172,20 @@ class SettingsViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                val twoMonthsAgo = System.currentTimeMillis() - (62L * 24 * 60 * 60 * 1000)
-                var found = 0
-                var skipped = 0
-
-                for (source in sources) {
-                    val rule = source.parsingRule!!
-                    try {
-                        val uri = Uri.parse("content://sms/inbox")
-                        val projection = arrayOf(
-                            Telephony.TextBasedSmsColumns.BODY,
-                            Telephony.TextBasedSmsColumns.DATE
-                        )
-                        val selection = "${Telephony.TextBasedSmsColumns.ADDRESS} = ? " +
-                            "AND ${Telephony.TextBasedSmsColumns.DATE} >= ?"
-                        val selectionArgs = arrayOf(source.senderAddress, twoMonthsAgo.toString())
-                        val cursor = context.contentResolver.query(
-                            uri, projection, selection, selectionArgs,
-                            "${Telephony.TextBasedSmsColumns.DATE} ASC"
-                        )
-                        cursor?.use {
-                            while (it.moveToNext()) {
-                                val body = it.getString(0) ?: continue
-                                val timestamp = it.getLong(1)
-                                val parsed = SmsParser.parse(
-                                    body, rule, timestamp, source.senderAddress
-                                )
-                                if (parsed == null) {
-                                    skipped++
-                                    continue
-                                }
-                                val saved = transactionRepository.saveHistoricalTransaction(parsed)
-                                if (saved) found++
-                            }
-                        }
-                    } catch (_: Exception) { }
-                }
-                Pair(found, skipped)
+            val result = scanInboxUseCase.scanHistoricalTransactions(
+                contentResolver = context.contentResolver,
+                sources = sources
+            ) { parsed ->
+                transactionRepository.saveHistoricalTransaction(parsed)
             }
 
             val msg = buildString {
-                append("Found ${result.first} past transaction(s). ")
-                append("Skipped ${result.second} non-transaction messages.")
-                if (result.first == 0) {
+                append("Found ${result.found} past transaction(s). ")
+                append("Skipped ${result.skipped} non-transaction messages.")
+                if (result.heuristicCount > 0) {
+                    append(" ${result.heuristicCount} extracted via heuristic (low confidence).")
+                }
+                if (result.found == 0) {
                     append(" No matching transactions found in the last 2 months.")
                 }
             }

@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 import kotlinx.coroutines.delay
 
 @Composable
@@ -68,7 +68,7 @@ fun SplashScreen(
 
         Text(
             text = "MoMo Bridge",
-            style = MomoType.TitleLarge,
+            style = MomoTypography.TitleLarge,
             color = MomoColors.TextPrimary,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -78,7 +78,7 @@ fun SplashScreen(
 
         Text(
             text = "Mobile Money Gateway",
-            style = MomoType.BodySmall,
+            style = MomoTypography.BodySmall,
             color = MomoColors.TextSecondary,
             textAlign = TextAlign.Center
         )
@@ -92,7 +92,7 @@ fun SplashScreen(
 
         Text(
             text = "v$appVersion · DNA Studios",
-            style = MomoType.LabelSmall,
+            style = MomoTypography.LabelSmall,
             color = MomoColors.TextTertiary,
             textAlign = TextAlign.Center
         )
@@ -119,7 +119,7 @@ private fun LogoCircle(size: Dp) {
     ) {
         Text(
             text = "MB",
-            style = MomoType.DisplayLarge,
+            style = MomoTypography.DisplayLarge,
             fontWeight = FontWeight.Bold,
             color = MomoColors.Gold
         )

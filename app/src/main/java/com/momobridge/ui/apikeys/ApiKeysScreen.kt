@@ -62,7 +62,7 @@ import com.momobridge.ui.components.GoldOutlineButton
 import com.momobridge.ui.components.MomoTextField
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -108,7 +108,7 @@ fun ApiKeysScreen(
                     Spacer(Modifier.width(MomoSpacing.Sm))
                     Text(
                         text = if (key.entity.isActive) "Active" else "Revoked",
-                        style = MomoType.LabelSmall,
+                        style = MomoTypography.LabelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = if (key.entity.isActive) MomoColors.StatusConfirmed else MomoColors.StatusFailed
                     )
@@ -135,7 +135,7 @@ fun ApiKeysScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = key.entity.label,
-                            style = MomoType.TitleMedium,
+                            style = MomoTypography.TitleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MomoColors.TextPrimary,
                             modifier = Modifier.weight(1f)
@@ -165,7 +165,7 @@ fun ApiKeysScreen(
                     ) {
                         Text(
                             text = key.keyValue,
-                            style = MomoType.BodySmall,
+                            style = MomoTypography.BodySmall,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = MomoColors.TextPrimary,
@@ -228,7 +228,7 @@ fun ApiKeysScreen(
                 Column {
                     Text(
                         "Name this store or integration.",
-                        style = MomoType.BodySmall,
+                        style = MomoTypography.BodySmall,
                         color = MomoColors.TextSecondary
                     )
                     Spacer(Modifier.height(MomoSpacing.Lg))
@@ -243,7 +243,7 @@ fun ApiKeysScreen(
                         Text(
                             state.error!!,
                             color = MomoColors.StatusFailed,
-                            style = MomoType.BodySmall
+                            style = MomoTypography.BodySmall
                         )
                     }
                 }
@@ -266,7 +266,7 @@ fun ApiKeysScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("API Keys", style = MomoType.TitleLarge, fontWeight = FontWeight.Bold)
+                        Text("API Keys", style = MomoTypography.TitleLarge, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(MomoSpacing.Sm))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MomoColors.Highlight),
@@ -274,7 +274,7 @@ fun ApiKeysScreen(
                         ) {
                             Text(
                                 text = state.activeCount.toString(),
-                                style = MomoType.LabelSmall,
+                                style = MomoTypography.LabelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MomoColors.Gold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -309,7 +309,7 @@ fun ApiKeysScreen(
                 Spacer(Modifier.height(MomoSpacing.Sm))
                 Text(
                     text = "Active",
-                    style = MomoType.LabelSmall,
+                    style = MomoTypography.LabelSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MomoColors.TextSecondary
                 )
@@ -325,7 +325,7 @@ fun ApiKeysScreen(
                         Text(
                             text = "No API keys yet. Tap + to add one.",
                             modifier = Modifier.padding(MomoSpacing.CardPadding),
-                            style = MomoType.BodySmall,
+                            style = MomoTypography.BodySmall,
                             color = MomoColors.TextTertiary
                         )
                     }
@@ -354,7 +354,7 @@ fun ApiKeysScreen(
                     ) {
                         Text(
                             text = "Revoked (${revokedKeys.size})",
-                            style = MomoType.LabelSmall,
+                            style = MomoTypography.LabelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MomoColors.TextTertiary,
                             modifier = Modifier.weight(1f)
@@ -430,7 +430,7 @@ private fun KeyCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = key.entity.label,
-                        style = MomoType.BodyMedium,
+                        style = MomoTypography.BodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = if (isActive) MomoColors.TextPrimary else MomoColors.TextTertiary,
                         maxLines = 1,
@@ -441,7 +441,7 @@ private fun KeyCard(
                         Spacer(Modifier.width(MomoSpacing.Sm))
                         Text(
                             text = "Revoked",
-                            style = MomoType.LabelSmall,
+                            style = MomoTypography.LabelSmall,
                             color = MomoColors.StatusFailed
                         )
                     }
@@ -449,7 +449,7 @@ private fun KeyCard(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "${key.keyValue.take(16)}...",
-                    style = MomoType.LabelSmall,
+                    style = MomoTypography.LabelSmall,
                     fontFamily = FontFamily.Monospace,
                     color = MomoColors.TextTertiary
                 )
@@ -460,7 +460,7 @@ private fun KeyCard(
                     }
                     Text(
                         text = "Last used ${dateFormat.format(Date(key.entity.lastUsedAt!!))}",
-                        style = MomoType.LabelSmall,
+                        style = MomoTypography.LabelSmall,
                         color = MomoColors.TextTertiary.copy(alpha = 0.7f)
                     )
                 }
@@ -477,13 +477,13 @@ private fun DetailRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = MomoType.LabelSmall,
+            style = MomoTypography.LabelSmall,
             color = MomoColors.TextTertiary,
             modifier = Modifier.width(80.dp)
         )
         Text(
             text = value,
-            style = MomoType.BodySmall,
+            style = MomoTypography.BodySmall,
             color = MomoColors.TextPrimary
         )
     }

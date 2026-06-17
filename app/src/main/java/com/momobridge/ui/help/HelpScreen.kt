@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 data class HelpTopic(
     val icon: ImageVector,
@@ -121,7 +121,7 @@ fun HelpScreen(
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = "App Version 1.0.0",
-                style = MomoType.LabelSmall,
+                style = MomoTypography.LabelSmall,
                 color = MomoColors.TextTertiary,
                 modifier = Modifier.padding(vertical = MomoSpacing.Xl)
             )
@@ -150,7 +150,7 @@ private fun HelpCard(topic: HelpTopic) {
                 Spacer(modifier = Modifier.width(MomoSpacing.Md))
                 Text(
                     text = topic.title,
-                    style = MomoType.BodyMedium,
+                    style = MomoTypography.BodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MomoColors.TextPrimary,
                     modifier = Modifier.weight(1f)
@@ -168,7 +168,7 @@ private fun HelpCard(topic: HelpTopic) {
             ) {
                 Text(
                     text = topic.content,
-                    style = MomoType.BodySmall,
+                    style = MomoTypography.BodySmall,
                     color = MomoColors.TextSecondary,
                     modifier = Modifier.padding(top = MomoSpacing.Sm)
                 )

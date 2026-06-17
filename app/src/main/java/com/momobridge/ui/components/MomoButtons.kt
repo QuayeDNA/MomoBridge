@@ -1,6 +1,7 @@
 package com.momobridge.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,7 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 @Composable
 fun GoldButton(
@@ -38,7 +39,8 @@ fun GoldButton(
             contentColor = MomoColors.OnGold,
             disabledContainerColor = MomoColors.Gold.copy(alpha = 0.5f),
             disabledContentColor = MomoColors.OnGold.copy(alpha = 0.5f)
-        )
+        ),
+        contentPadding = PaddingValues(horizontal = 24.dp)
     ) {
         if (loading) {
             CircularProgressIndicator(
@@ -49,7 +51,7 @@ fun GoldButton(
         }
         Text(
             text = if (loading) "" else text,
-            style = MomoType.LabelLarge
+            style = MomoTypography.LabelLarge
         )
     }
 }
@@ -73,11 +75,12 @@ fun GoldOutlineButton(
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MomoColors.Gold,
             disabledContentColor = MomoColors.GoldDim.copy(alpha = 0.5f)
-        )
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp)
     ) {
         Text(
             text = text,
-            style = MomoType.LabelLarge
+            style = MomoTypography.LabelLarge
         )
     }
 }
@@ -102,8 +105,9 @@ fun DangerButton(
             contentColor = Color.White,
             disabledContainerColor = MomoColors.StatusFailed.copy(alpha = 0.5f),
             disabledContentColor = Color.White.copy(alpha = 0.5f)
-        )
+        ),
+        contentPadding = PaddingValues(horizontal = 24.dp)
     ) {
-        Text(text = text, style = MomoType.LabelLarge)
+        Text(text = text, style = MomoTypography.LabelLarge)
     }
 }

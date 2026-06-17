@@ -8,7 +8,8 @@ data class DetectedFields(
     val senderName: String,
     val senderPhone: String,
     val balance: String,
-    val keyword: String
+    val keyword: String,
+    val actionVerbs: List<String> = if (keyword.isNotBlank()) listOf(keyword) else listOf("received")
 )
 
 object AutoDetectUtils {
@@ -168,7 +169,7 @@ object AutoDetectUtils {
             senderNamePattern = senderNamePattern,
             senderPhonePattern = senderPhonePattern,
             balancePattern = balancePattern,
-            isCreditKeyword = keyword,
+            actionVerbs = fields.actionVerbs,
             exampleMessage = body
         )
     }

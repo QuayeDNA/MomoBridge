@@ -61,7 +61,7 @@ import com.momobridge.ui.components.SectionSubtext
 import com.momobridge.ui.components.SmsSourceCard
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 /**
  * Settings screen — flat layout.
@@ -133,14 +133,14 @@ fun SettingsScreen(
             .background(MomoColors.GroundDark)
     ) {
         TopAppBar(
-            title = { Text("Settings", style = MomoType.TitleLarge, fontWeight = FontWeight.Bold) },
+            title = { Text("Settings", style = MomoTypography.TitleLarge, fontWeight = FontWeight.Bold) },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MomoColors.GroundDark),
             actions = {
                 TextButton(onClick = onNavigateToHelp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.AutoMirrored.Filled.Help, contentDescription = null, tint = MomoColors.Gold)
                         Spacer(Modifier.width(MomoSpacing.Xs))
-                        Text("Help", color = MomoColors.Gold, style = MomoType.LabelSmall)
+                        Text("Help", color = MomoColors.Gold, style = MomoTypography.LabelSmall)
                     }
                 }
             }
@@ -217,7 +217,7 @@ fun SettingsScreen(
                             Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(Modifier.width(MomoSpacing.Sm))
-                        Text("Scan Inbox", style = MomoType.LabelSmall)
+                        Text("Scan Inbox", style = MomoTypography.LabelSmall)
                     }
                     AddSenderButton(
                         modifier = Modifier.weight(1f),
@@ -260,7 +260,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(MomoSpacing.Sm))
                     Text(
                         text = state.historicalScanResult!!,
-                        style = MomoType.BodySmall,
+                        style = MomoTypography.BodySmall,
                         color = MomoColors.TextSecondary
                     )
                 }
@@ -300,7 +300,7 @@ private fun SettingsLabeledDivider(label: String) {
     Spacer(Modifier.height(MomoSpacing.Xs))
     Text(
         text = label,
-        style = MomoType.LabelSmall,
+        style = MomoTypography.LabelSmall,
         color = MomoColors.TextTertiary,
         fontWeight = FontWeight.Medium
     )
@@ -341,7 +341,7 @@ private fun RelayStatusRow(
             Spacer(Modifier.width(MomoSpacing.Sm))
             Text(
                 text = statusLabel,
-                style = MomoType.BodyMedium,
+                style = MomoTypography.BodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = statusColor,
                 modifier = Modifier.weight(1f)
@@ -361,7 +361,7 @@ private fun RelayStatusRow(
             ) {
                 Text(
                     text = relayState.url,
-                    style = MomoType.BodySmall,
+                    style = MomoTypography.BodySmall,
                     color = MomoColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -396,13 +396,13 @@ private fun ExpiryConfigRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Enable Expiry",
-                    style = MomoType.BodyMedium,
+                    style = MomoTypography.BodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MomoColors.TextPrimary
                 )
                 Text(
                     text = if (expiryEnabled) "Transactions expire after ${expiryHours}h" else "Transactions never expire",
-                    style = MomoType.LabelSmall,
+                    style = MomoTypography.LabelSmall,
                     color = MomoColors.TextSecondary
                 )
             }
@@ -451,7 +451,7 @@ private fun ExpiryConfigRow(
 private fun EmptySendersNotice() {
     Text(
         text = "No senders configured yet. Tap \"Scan Inbox\" or \"Add Manually\" to get started.",
-        style = MomoType.BodySmall,
+        style = MomoTypography.BodySmall,
         color = MomoColors.TextSecondary
     )
 }
@@ -465,7 +465,7 @@ private fun AddSenderButton(modifier: Modifier = Modifier, onAdd: (String, Strin
     OutlinedButton(onClick = { showDialog = true }, modifier = modifier) {
         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(MomoSpacing.Sm))
-        Text("Add Manually", style = MomoType.LabelSmall)
+        Text("Add Manually", style = MomoTypography.LabelSmall)
     }
 
     if (showDialog) {
@@ -523,14 +523,14 @@ private fun ScanResultDialog(
             } else if (senders.isEmpty()) {
                 Text(
                     "No SMS senders found in your inbox.",
-                    style = MomoType.BodySmall,
+                    style = MomoTypography.BodySmall,
                     color = MomoColors.TextSecondary
                 )
             } else {
                 Column {
                     Text(
                         "Tap a sender to add it to monitoring.",
-                        style = MomoType.BodySmall,
+                        style = MomoTypography.BodySmall,
                         color = MomoColors.TextSecondary
                     )
                     Spacer(Modifier.height(MomoSpacing.Sm))
@@ -546,13 +546,13 @@ private fun ScanResultDialog(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         sender.address,
-                                        style = MomoType.BodyMedium,
+                                        style = MomoTypography.BodyMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MomoColors.TextPrimary
                                     )
                                     Text(
                                         "${sender.messageCount} messages",
-                                        style = MomoType.LabelSmall,
+                                        style = MomoTypography.LabelSmall,
                                         color = MomoColors.TextSecondary
                                     )
                                 }
@@ -587,7 +587,7 @@ private fun RelayUrlEditDialog(
             Column {
                 Text(
                     "Change the relay server URL. The relay routes payment verification requests from websites to your app.",
-                    style = MomoType.BodySmall,
+                    style = MomoTypography.BodySmall,
                     color = MomoColors.TextSecondary
                 )
                 Spacer(Modifier.height(MomoSpacing.Lg))

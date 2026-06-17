@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoSpacing
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 data class BottomNavTab(
     val route: String,
@@ -65,7 +65,7 @@ fun BottomNavBar(
                             ) {
                                 Text(
                                     text = apiKeyCount.toString(),
-                                    style = MomoType.LabelSmall
+                                    style = MomoTypography.LabelSmall
                                 )
                             }
                         }) {
@@ -84,7 +84,7 @@ fun BottomNavBar(
                 label = {
                     Text(
                         text = tab.label,
-                        style = MomoType.LabelSmall
+                        style = MomoTypography.LabelSmall
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(

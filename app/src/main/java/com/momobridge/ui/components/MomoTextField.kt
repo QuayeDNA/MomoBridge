@@ -11,11 +11,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
-import com.momobridge.ui.theme.MomoType
+import com.momobridge.ui.theme.MomoTypography
 
 @Composable
 fun MomoTextField(
@@ -31,7 +30,7 @@ fun MomoTextField(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = label,
-            style = MomoType.BodySmall,
+            style = MomoTypography.BodySmall,
             color = MomoColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -39,7 +38,7 @@ fun MomoTextField(
             value = value,
             onValueChange = onValueChange,
             placeholder = if (placeholder.isNotEmpty()) {
-                { Text(placeholder, style = MomoType.BodyMedium, color = MomoColors.TextTertiary) }
+                { Text(placeholder, style = MomoTypography.BodyMedium, color = MomoColors.TextTertiary) }
             } else null,
             singleLine = singleLine,
             isError = error != null,
@@ -47,7 +46,7 @@ fun MomoTextField(
             shape = MomoShapes.InputShape,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = if (error != null) MomoColors.StatusFailed else MomoColors.BorderAccent,
-                unfocusedBorderColor = if (error != null) MomoColors.StatusFailed else Color(0xFF45557A),
+                unfocusedBorderColor = if (error != null) MomoColors.StatusFailed else MomoColors.BorderSubtle,
                 cursorColor = MomoColors.Gold,
                 focusedTextColor = MomoColors.TextPrimary,
                 unfocusedTextColor = MomoColors.TextPrimary,
@@ -64,7 +63,7 @@ fun MomoTextField(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = error,
-                style = MomoType.BodySmall,
+                style = MomoTypography.BodySmall,
                 color = MomoColors.StatusFailed
             )
         }
