@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MoMo Bridge — Mobile Money Verification Infrastructure</title>
+  <meta name="description" content="MoMo Bridge is a lightweight Android app that turns your phone into a real-time Mobile Money verification authority. No backend, no wallet system — just instant payment confirmation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,200..900,50..100,0..1&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js" defer></script>
+  <style>
+    :root {
+      --color-ground: #0a0e1a;
+      --color-surface: #0f1424;
+      --color-surface-raised: #1a2140;
+      --color-border: #1e2748;
+      --color-text-primary: #e8edf5;
+      --color-text-secondary: #8b95b0;
+      --color-text-tertiary: #5a6480;
+      --color-accent: #d4a843;
+      --color-accent-dim: rgba(212, 168, 67, 0.08);
+      --color-accent-glow: rgba(212, 168, 67, 0.15);
+      --color-success: #00c853;
+      --color-error: #ef5350;
+      --color-warn: #f0b429;
+
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body: -apple-system, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --space-3xl: 64px;
+      --space-4xl: 96px;
+
+      --radius-sm: 4px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+
+      --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+      --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: var(--color-ground);
+      color: var(--color-text-primary);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    ::selection {
+      background: var(--color-accent);
+      color: var(--color-ground);
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--color-ground); }
+    ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }
+
+    img, svg { display: block; max-width: 100%; }
+    a { color: var(--color-accent); text-decoration: none; transition: opacity 0.2s ease; }
+    a:hover { opacity: 0.8; }
+    code { font-family: var(--font-mono); }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 var(--space-lg);
+    }
+
+    .section-label {
+      font-family: var(--font-display);
+      font-size: clamp(11px, 1.2vw, 13px);
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--color-accent);
+      margin-bottom: var(--space-md);
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+    }
+
+    .section-sub {
+      font-size: clamp(15px, 1.6vw, 18px);
+      color: var(--color-text-secondary);
+      margin-top: var(--space-md);
+      max-width: 640px;
+      line-height: 1.7;
+    }
+
+    /* ─── Nav ──────────────────────────────────────────────── */
+
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: var(--space-md) 0;
+      background: rgba(10, 14, 26, 0.85);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--color-border);
+      transition: border-color 0.3s ease;
+    }
+
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--color-accent);
+      letter-spacing: -0.02em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+    }
+
+    .nav-logo span { color: var(--color-text-primary); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xl);
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.02em;
+      transition: color 0.2s ease;
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 1.5px;
+      background: var(--color-accent);
+      transition: width 0.3s var(--ease-out-expo);
+    }
+
+    .nav-links a:hover { color: var(--color-text-primary); }
+    .nav-links a:hover::after { width: 100%; }
+
+    .nav-cta {
+      padding: 8px 20px;
+      background: var(--color-accent);
+      color: var(--color-ground) !important;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      font-size: 13px;
+      transition: opacity 0.2s ease;
+    }
+
+    .nav-cta::after { display: none !important; }
+    .nav-cta:hover { opacity: 0.9; }
+
+    .mobile-nav-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text-primary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: var(--space-sm);
+    }
+
+    /* ─── Hero ──────────────────────────────────────────────── */
+
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      left: -20%;
+      width: 140%;
+      height: 120%;
+      background: radial-gradient(ellipse 80% 50% at 50% 30%, var(--color-accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 6px 14px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-xl);
+      animation: fade-up 0.8s var(--ease-out-expo) both;
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-success);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(48px, 10vw, 120px);
+      font-weight: 900;
+      line-height: 0.92;
+      letter-spacing: -0.05em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      animation: fade-up 0.8s var(--ease-out-expo) 0.1s both;
+    }
+
+    .hero-title .accent {
+      color: var(--color-accent);
+    }
+
+    .hero-tagline {
+      font-size: clamp(16px, 2vw, 22px);
+      color: var(--color-text-secondary);
+      margin-top: var(--space-lg);
+      max-width: 580px;
+      line-height: 1.6;
+      animation: fade-up 0.8s var(--ease-out-expo) 0.2s both;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      margin-top: var(--space-xl);
+      animation: fade-up 0.8s var(--ease-out-expo) 0.3s both;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 14px 32px;
+      background: var(--color-accent);
+      color: var(--color-ground);
+      border: none;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+    }
+
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(0.97); }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 14px 32px;
+      background: transparent;
+      color: var(--color-accent);
+      border: 1px solid var(--color-accent);
+      border-radius: var(--radius-full);
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-secondary:hover { background: var(--color-accent-dim); }
+
+    .hero-stats {
+      display: flex;
+      gap: var(--space-2xl);
+      margin-top: var(--space-3xl);
+      padding-top: var(--space-xl);
+      border-top: 1px solid var(--color-border);
+      animation: fade-up 0.8s var(--ease-out-expo) 0.4s both;
+    }
+
+    .hero-stat-num {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3vw, 36px);
+      font-weight: 800;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      color: var(--color-text-primary);
+    }
+
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--color-text-tertiary);
+      margin-top: var(--space-xs);
+    }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── How It Works ─────────────────────────────────────── */
+
+    .section { padding: var(--space-4xl) 0; }
+
+    .section.how-it-works {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-lg);
+      margin-top: var(--space-2xl);
+    }
+
+    .how-step {
+      position: relative;
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      transition: border-color 0.3s ease;
+    }
+
+    .how-step:hover { border-color: var(--color-accent); }
+
+    .how-step-num {
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--color-accent);
+      opacity: 0.3;
+      line-height: 1;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-md);
+    }
+
+    .how-step h3 {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-sm);
+    }
+
+    .how-step p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+
+    .how-step-arrow {
+      position: absolute;
+      right: -24px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 20px;
+      color: var(--color-text-tertiary);
+    }
+
+    .how-step:last-child .how-step-arrow { display: none; }
+
+    /* ─── Flow Diagram ─────────────────────────────────────── */
+
+    .diagram-wrapper {
+      margin-top: var(--space-2xl);
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .diagram-wrapper .mermaid {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .diagram-wrapper .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    @media (max-width: 768px) {
+      .diagram-wrapper {
+        padding: var(--space-md);
+        margin-left: calc(-1 * var(--space-md));
+        margin-right: calc(-1 * var(--space-md));
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+
+      .diagram-wrapper .mermaid svg {
+        transform: scale(0.85);
+        transform-origin: center top;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .diagram-wrapper .mermaid svg {
+        transform: scale(0.7);
+        transform-origin: center top;
+      }
+    }
+
+    /* ─── Features ─────────────────────────────────────────── */
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-lg);
+      margin-top: var(--space-2xl);
+    }
+
+    .feature-card {
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      transition: border-color 0.3s ease, transform 0.3s var(--ease-out-expo);
+    }
+
+    .feature-card:hover {
+      border-color: var(--color-accent);
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-accent-dim);
+      border-radius: var(--radius-md);
+      font-size: 20px;
+      margin-bottom: var(--space-md);
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-sm);
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ─── Architecture ─────────────────────────────────────── */
+
+    .arch-section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-lg);
+      margin-top: var(--space-2xl);
+    }
+
+    .arch-card {
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .arch-card h3 {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-md);
+      color: var(--color-accent);
+    }
+
+    .arch-card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .arch-card li {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      padding: var(--space-sm) 0;
+      padding-left: var(--space-lg);
+      position: relative;
+      line-height: 1.6;
+    }
+
+    .arch-card li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--color-accent);
+    }
+
+    .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+    }
+
+    .tech-tag {
+      padding: 4px 12px;
+      background: var(--color-accent-dim);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--color-text-secondary);
+    }
+
+    /* ─── Integration ──────────────────────────────────────── */
+
+    .integration-section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .integration-intro {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2xl);
+      margin-top: var(--space-2xl);
+      align-items: start;
+    }
+
+    .integration-intro p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.7;
+    }
+
+    .integration-modes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-lg);
+      margin-top: var(--space-2xl);
+    }
+
+    .mode-card {
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .mode-card h3 {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-sm);
+    }
+
+    .mode-card p {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+      margin-bottom: var(--space-md);
+    }
+
+    .mode-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      background: var(--color-accent-dim);
+      color: var(--color-accent);
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      letter-spacing: 0.03em;
+      margin-bottom: var(--space-md);
+    }
+
+    .code-block {
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.8;
+      overflow-x: auto;
+      color: var(--color-text-primary);
+      white-space: pre;
+      tab-size: 2;
+    }
+
+    .code-block .comment { color: var(--color-text-tertiary); }
+    .code-block .keyword { color: var(--color-accent); }
+    .code-block .string { color: var(--color-success); }
+    .code-block .fn { color: #64b5f6; }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: var(--space-sm);
+      padding: 6px 14px;
+      background: transparent;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      color: var(--color-text-tertiary);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+
+    /* ─── Live Demo ────────────────────────────────────────── */
+
+    .demo-section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .demo-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2xl);
+      margin-top: var(--space-2xl);
+    }
+
+    .demo-config {
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .demo-config h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: var(--space-lg);
+    }
+
+    .form-group {
+      margin-bottom: var(--space-md);
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-xs);
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-primary);
+      font-size: 14px;
+      font-family: var(--font-mono);
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-group input:focus {
+      border-color: var(--color-accent);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+    }
+
+    .demo-mode-buttons {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: var(--space-lg);
+    }
+
+    .demo-mode-btn {
+      flex: 1;
+      padding: 10px;
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .demo-mode-btn:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+
+    .demo-mode-btn:active {
+      transform: scale(0.97);
+    }
+
+    .demo-preview {
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .demo-preview h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: var(--space-lg);
+    }
+
+    #inline-container {
+      width: 100%;
+      min-height: 200px;
+    }
+
+    #inline-container .__mb-widget-wrapper {
+      max-width: 100% !important;
+    }
+
+    .demo-log {
+      margin-top: var(--space-md);
+      padding: var(--space-md);
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--color-text-tertiary);
+      min-height: 48px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    /* ─── Download ─────────────────────────────────────────── */
+
+    .download-section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2xl);
+      margin-top: var(--space-2xl);
+    }
+
+    .download-info h3 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-md);
+    }
+
+    .download-info p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.7;
+    }
+
+    .download-info ul {
+      list-style: none;
+      padding: 0;
+      margin: var(--space-md) 0;
+    }
+
+    .download-info li {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      padding: 6px 0;
+      padding-left: var(--space-lg);
+      position: relative;
+    }
+
+    .download-info li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--color-success);
+    }
+
+    .download-card {
+      padding: var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+
+    .download-card-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+
+    .download-card h3 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variation-settings: 'SOFT' 60, 'WONK' 1;
+      margin-bottom: var(--space-sm);
+    }
+
+    .download-card p {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-lg);
+    }
+
+    .download-card .btn-primary {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .download-card .version {
+      font-size: 12px;
+      color: var(--color-text-tertiary);
+      margin-top: var(--space-md);
+      font-family: var(--font-mono);
+    }
+
+    .build-instructions {
+      margin-top: var(--space-lg);
+      padding: var(--space-md);
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.7;
+    }
+
+    .build-instructions code {
+      font-size: 12px;
+      padding: 2px 6px;
+      background: var(--color-surface);
+      border-radius: var(--radius-sm);
+    }
+
+    /* ─── Footer ───────────────────────────────────────────── */
+
+    footer {
+      border-top: 1px solid var(--color-border);
+      padding: var(--space-2xl) 0;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: var(--space-2xl);
+    }
+
+    .footer-brand p {
+      font-size: 13px;
+      color: var(--color-text-tertiary);
+      margin-top: var(--space-sm);
+      max-width: 320px;
+      line-height: 1.6;
+    }
+
+    .footer-col h4 {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-md);
+    }
+
+    .footer-col ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .footer-col li {
+      margin-bottom: var(--space-sm);
+    }
+
+    .footer-col a {
+      font-size: 13px;
+      color: var(--color-text-tertiary);
+      transition: color 0.2s ease;
+    }
+
+    .footer-col a:hover { color: var(--color-accent); }
+
+    .footer-bottom {
+      margin-top: var(--space-2xl);
+      padding-top: var(--space-lg);
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--color-text-tertiary);
+    }
+
+    /* ─── Widget Inline Styles (scoped) ────────────────────── */
+
+    #inline-container .__mb-widget-wrapper label {
+      display: block;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 4px;
+    }
+
+    #inline-container .__mb-widget-wrapper input {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-primary);
+      font-size: 14px;
+      outline: none;
+      font-family: var(--font-mono);
+    }
+
+    #inline-container .__mb-widget-wrapper input:focus {
+      border-color: var(--color-accent);
+    }
+
+    #inline-container .__mb-widget-wrapper input.__mb-error-input {
+      border-color: var(--color-error);
+    }
+
+    #inline-container #__mb-amount-display {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: var(--color-ground);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+    }
+
+    #inline-container #__mb-amount-display span:first-child {
+      color: var(--color-text-secondary);
+      font-size: 13px;
+    }
+
+    #inline-container #__mb-amount-display span:last-child {
+      color: var(--color-success);
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    #inline-container #__mb-btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 4px;
+      background: var(--color-accent);
+      color: var(--color-ground);
+      border: none;
+      border-radius: var(--radius-full);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    #inline-container #__mb-btn:hover { opacity: 0.9; }
+    #inline-container #__mb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── Responsive ───────────────────────────────────────── */
+
+    @media (max-width: 1024px) {
+      .how-grid { grid-template-columns: repeat(2, 1fr); }
+      .how-step-arrow { display: none; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .mobile-nav-toggle { display: block; }
+
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 60px;
+        left: 0;
+        right: 0;
+        padding: var(--space-lg);
+        background: var(--color-ground);
+        border-bottom: 1px solid var(--color-border);
+        gap: var(--space-md);
+        align-items: flex-start;
+      }
+
+      .hero-stats { flex-direction: column; gap: var(--space-md); }
+      .how-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .arch-grid { grid-template-columns: 1fr; }
+      .integration-intro { grid-template-columns: 1fr; }
+      .integration-modes { grid-template-columns: 1fr; }
+      .demo-layout { grid-template-columns: 1fr; }
+      .download-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: var(--space-xl); }
+      .form-row { grid-template-columns: 1fr; }
+
+      .demo-mode-buttons { flex-direction: column; }
+
+      .section { padding: var(--space-2xl) 0; }
+
+      .footer-bottom {
+        flex-direction: column;
+        gap: var(--space-sm);
+        text-align: center;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Navigation ──────────────────────────────────── -->
+  <nav role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <a href="#" class="nav-logo">MoMo<span>Bridge</span></a>
+      <button class="mobile-nav-toggle" id="mobile-nav-toggle" aria-label="Toggle navigation menu">☰</button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#integration">Integration</a></li>
+        <li><a href="#demo">Demo</a></li>
+        <li><a href="#download" class="nav-cta">Download App</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ─── Hero ─────────────────────────────────────────── -->
+  <header class="hero" id="hero">
+    <div class="container hero-content">
+      <div class="hero-eyebrow">
+        <span class="hero-eyebrow-dot"></span>
+        Operational · Real-time · Self-hosted
+      </div>
+      <h1 class="hero-title">
+        Turn any phone<br />
+        into a <span class="accent">payment verifier</span>
+      </h1>
+      <p class="hero-tagline">
+        MoMo Bridge is a lightweight Android app that acts as a local verification authority
+        for Mobile Money payments. No backend, no wallet system, no monthly fees — just
+        instant payment confirmation via SMS interception.
+      </p>
+      <div class="hero-actions">
+        <a href="#download" class="btn-primary">
+          ↓ Download APK
+        </a>
+        <a href="#demo" class="btn-secondary">
+          Try the Widget →
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-num">&lt; 50ms</div>
+          <div class="hero-stat-label">Average verification time</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">4</div>
+          <div class="hero-stat-label">Supported networks</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">100%</div>
+          <div class="hero-stat-label">On-device, no cloud dependency</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── How It Works ─────────────────────────────────── -->
+  <section class="section how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">From SMS to confirmation<br />in under a second</h2>
+      <p class="section-sub">
+        Customer sends MoMo → your phone intercepts the SMS → app stores it locally.
+        When the customer enters their reference on your website, the widget talks to
+        your phone via a lightweight relay. No cloud database, no third parties.
+      </p>
+
+      <div class="how-grid">
+        <div class="how-step">
+          <div class="how-step-num">01</div>
+          <h3>Intercept SMS</h3>
+          <p>App automatically captures MoMo SMS confirmations from MTN, Telecel, AT, and T-CASH. Parses reference, amount, sender.</p>
+          <div class="how-step-arrow">→</div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">02</div>
+          <h3>Store Locally</h3>
+          <p>Transaction saved in on-device Room database as PENDING. No data ever leaves your phone unless you claim it.</p>
+          <div class="how-step-arrow">→</div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">03</div>
+          <h3>Customer Claims</h3>
+          <p>Customer enters reference on your website widget. Widget sends claim request to the relay, which forwards it to your phone.</p>
+          <div class="how-step-arrow">→</div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">04</div>
+          <h3>Instant Result</h3>
+          <p>App verifies against local DB and responds. Confirmed → your site credits the customer. Failed → friendly error shown.</p>
+        </div>
+      </div>
+
+      <div class="diagram-wrapper">
+        <pre class="mermaid">
+%%{init: {'theme':'dark', 'themeVariables': {
+  'fontFamily': '-apple-system, system-ui, sans-serif',
+  'primaryColor': '#d4a843',
+  'primaryTextColor': '#e8edf5',
+  'primaryBorderColor': '#d4a843',
+  'lineColor': '#d4a843',
+  'secondaryColor': '#0f1424',
+  'tertiaryColor': '#1a2140',
+  'clusterBkg': '#0f1424',
+  'clusterBorder': '#1e2748',
+  'nodeBorder': '#1e2748',
+  'nodeTextColor': '#e8edf5',
+  'edgeLabelBackground': '#0a0e1a',
+  'edgeLabelColor': '#8b95b0',
+  'signalColor': '#d4a843',
+  'signalTextColor': '#e8edf5'
+}}}%%
+flowchart LR
+    subgraph Phone["📱 Android App"]
+        A1["✉️ SMS Intercept"]
+        A2["💾 Room DB\n(SQLite)"]
+        A3["✅ Claim Handler"]
+    end
+
+    subgraph Svr["☁️ Relay Server"]
+        R1["🔗 WebSocket\napiKey ↔ WS"]
+        R2["📡 POST /claim"]
+    end
+
+    subgraph Widget["🌐 Web Widget"]
+        W1["🪟 Popup / Inline\n/ Redirect"]
+    end
+
+    subgraph Site["🛒 Your Website"]
+        S1["💳 Checkout Page"]
+    end
+
+    SMS["📨 MoMo SMS"] -->|intercept| A1
+    A1 -->|parse & store| A2
+    A2 -->|findByReference| A3
+    Phone <-->|WebSocket\npersistent| R1
+    Widget -->|HTTP POST\n{apiKey,ref,amount}| R2
+    R2 -->|forward| R1
+    R1 -->|claim_request| A3
+    A3 -->|confirmed / rejected| R1
+    R1 -->|result| Widget
+    Widget -->|postMessage| S1
+    S1 -->|load script| Widget
+
+    style A1 fill:#1a2140,stroke:#d4a843,color:#e8edf5
+    style A2 fill:#1a2140,stroke:#d4a843,color:#e8edf5
+    style A3 fill:#1a2140,stroke:#00c853,color:#e8edf5
+    style R1 fill:#0f1424,stroke:#d4a843,color:#e8edf5
+    style R2 fill:#0f1424,stroke:#d4a843,color:#e8edf5
+    style W1 fill:#0f1424,stroke:#d4a843,color:#e8edf5
+    style S1 fill:#0f1424,stroke:#8b95b0,color:#e8edf5
+    style SMS fill:#0a0e1a,stroke:#5a6480,color:#8b95b0
+        </pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Features ────────────────────────────────────── -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Built for vendors who<br />need real-time trust</h2>
+      <p class="section-sub">
+        Every feature is designed around one principle: payment verification should be
+        instant, offline-capable, and require zero trust in third-party infrastructure.
+      </p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Real-time verification</h3>
+          <p>SMS intercepted, parsed, and ready for verification in under 50ms. Customer gets their result before the toast disappears.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔑</div>
+          <h3>Multi-key architecture</h3>
+          <p>Generate one API key per store location. All keys route to the same device. Per-key transaction audit trail built in.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📴</div>
+          <h3>Works offline</h3>
+          <p>SMS interception and storage work without internet. Only verification needs the relay. Graceful offline feedback to customers.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>No cloud dependency</h3>
+          <p>Your phone IS the database. The relay is a stateless switchboard with zero storage. No user data on any server, ever.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Multi-network</h3>
+          <p>Works with MTN, Telecel (formerly Vodafone), AT (formerly AirtelTigo), and T-CASH. Config-driven — add new networks without code changes.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3>Embeddable widget</h3>
+          <p>Three integration modes: popup modal, inline embed, or redirect page. Drop a &lt;script&gt; tag and you're done.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Architecture ─────────────────────────────────── -->
+  <section class="section arch-section">
+    <div class="container">
+      <div class="section-label">Architecture</div>
+      <h2 class="section-title">Three components,<br />zero complexity</h2>
+      <p class="section-sub">
+        No Kubernetes, no microservices, no database migrations. Three pieces of software
+        that fit in a single GitHub repo.
+      </p>
+
+      <div class="arch-grid">
+        <div class="arch-card">
+          <h3>📱 Android App</h3>
+          <ul>
+            <li>Kotlin + Jetpack Compose + Material 3</li>
+            <li>Intercepts SMS via BroadcastReceiver</li>
+            <li>Parses and stores transactions in Room (SQLite)</li>
+            <li>WebSocket client connects to relay</li>
+            <li>Generates and manages API keys per store</li>
+          </ul>
+          <div class="tech-tags">
+            <span class="tech-tag">Kotlin</span>
+            <span class="tech-tag">Jetpack Compose</span>
+            <span class="tech-tag">Room</span>
+            <span class="tech-tag">OkHttp</span>
+          </div>
+        </div>
+        <div class="arch-card">
+          <h3>🔁 Relay Server</h3>
+          <ul>
+            <li>Single Bun process — one file, zero npm deps</li>
+            <li>In-memory WebSocket ↔ apiKey map</li>
+            <li>POST /claim forwards requests to the right device</li>
+            <li>Stateless — no database, no disk writes</li>
+            <li>Deploys to Render free tier or any VPS</li>
+          </ul>
+          <div class="tech-tags">
+            <span class="tech-tag">Bun</span>
+            <span class="tech-tag">TypeScript</span>
+            <span class="tech-tag">WebSocket</span>
+            <span class="tech-tag">Docker</span>
+          </div>
+        </div>
+        <div class="arch-card" style="grid-column: 1 / -1;">
+          <h3>🌐 Web Widget</h3>
+          <ul>
+            <li>Vanilla JavaScript — zero dependencies, zero build step</li>
+            <li>Three modes: popup (modal overlay), inline (&lt;div&gt; embed), redirect (standalone page)</li>
+            <li>Exposed as <code>window.MoMoBridge</code> via &lt;script&gt; tag</li>
+            <li>Rich result cards with success/error/warn states</li>
+            <li>postMessage API for parent app integration</li>
+            <li>Served from Vercel CDN with global caching</li>
+          </ul>
+          <div class="tech-tags">
+            <span class="tech-tag">Vanilla JS</span>
+            <span class="tech-tag">HTML/CSS</span>
+            <span class="tech-tag">Vercel</span>
+            <span class="tech-tag">CDN</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Integration Docs ─────────────────────────────── -->
+  <section class="section integration-section" id="integration">
+    <div class="container">
+      <div class="section-label">Integration</div>
+      <h2 class="section-title">Add to any website<br />in two lines</h2>
+      <p class="section-sub">
+        Drop a script tag, configure your relay URL and API key, and choose your
+        integration mode. No npm install, no build step, no iframe mess.
+      </p>
+
+      <div class="integration-intro">
+        <div>
+          <h3 style="font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.02em;font-variation-settings:'SOFT' 60,'WONK' 1;margin-bottom:var(--space-sm)">1. Load the script</h3>
+          <div class="code-block"><span class="comment">&lt;!-- Add to your checkout page --&gt;</span>
+<span class="keyword">&lt;</span><span class="fn">script</span> <span class="keyword">src</span>=<span class="string">"https://momobridge-widget.vercel.app/momobridge.js"</span><span class="keyword">&gt;&lt;/</span><span class="fn">script</span><span class="keyword">&gt;</span></div>
+        </div>
+        <div>
+          <h3 style="font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.02em;font-variation-settings:'SOFT' 60,'WONK' 1;margin-bottom:var(--space-sm)">2. Listen for result</h3>
+          <div class="code-block"><span class="comment">// Optional: listen for postMessage result</span>
+<span class="keyword">window</span>.<span class="fn">addEventListener</span>(<span class="string">'message'</span>, <span class="fn">e</span> <span class="keyword">=&gt;</span> {
+  <span class="keyword">if</span> (e.data.type === <span class="string">'momo_result'</span>) {
+    <span class="comment">// { confirmed, reference, amount }</span>
+    <span class="keyword">if</span> (e.data.confirmed) <span class="fn">creditWallet</span>(e.data);
+  }
+});</div>
+        </div>
+      </div>
+
+      <div class="integration-modes">
+        <div class="mode-card">
+          <span class="mode-badge">Popup</span>
+          <h3>Modal Overlay</h3>
+          <p>Opens a centered verification modal. Best for manual trigger — attach to a "Verify Payment" button.</p>
+          <div class="code-block"><span class="keyword">MoMoBridge</span>.<span class="fn">popup</span>({
+  relayUrl: <span class="string">'https://your-relay.com'</span>,
+  apiKey: <span class="string">'mb_...'</span>,
+  amount: <span class="number">18.00</span>,
+  onSuccess: <span class="fn">handleSuccess</span>,
+  onFailure: <span class="fn">handleFailure</span>
+});</div>
+          <button class="copy-btn" onclick="copyCode(this, 'popup')">📋 Copy</button>
+        </div>
+        <div class="mode-card">
+          <span class="mode-badge">Inline</span>
+          <h3>Embedded Form</h3>
+          <p>Renders the verification form directly into a container div. No modal — stays on the page.</p>
+          <div class="code-block"><span class="keyword">MoMoBridge</span>.<span class="fn">inline</span>({
+  relayUrl: <span class="string">'https://your-relay.com'</span>,
+  apiKey: <span class="string">'mb_...'</span>,
+  amount: <span class="number">18.00</span>,
+  container: <span class="string">'#verify-container'</span>,
+  onSuccess: <span class="fn">handleSuccess</span>,
+  onFailure: <span class="fn">handleFailure</span>
+});</div>
+          <button class="copy-btn" onclick="copyCode(this, 'inline')">📋 Copy</button>
+        </div>
+        <div class="mode-card">
+          <span class="mode-badge">Redirect</span>
+          <h3>Standalone Page</h3>
+          <p>Opens the dedicated verification page in a new tab or same window. Supports callback URL.</p>
+          <div class="code-block"><span class="keyword">MoMoBridge</span>.<span class="fn">redirect</span>({
+  relayUrl: <span class="string">'https://your-relay.com'</span>,
+  apiKey: <span class="string">'mb_...'</span>,
+  amount: <span class="number">18.00</span>,
+  callbackUrl: <span class="string">'https://myshop.com/checkout'</span>,
+  target: <span class="string">'_blank'</span>
+});</div>
+          <button class="copy-btn" onclick="copyCode(this, 'redirect')">📋 Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Live Demo ────────────────────────────────────── -->
+  <section class="section demo-section" id="demo">
+    <div class="container">
+      <div class="section-label">Live Demo</div>
+      <h2 class="section-title">Try the widget<br />right now</h2>
+      <p class="section-sub">
+        Configure your relay URL and API key, then test all three integration modes
+        in real time. Use the inline mode below to simulate embedding on your site.
+      </p>
+
+      <div class="demo-layout">
+        <div class="demo-config">
+          <h3>Configuration</h3>
+          <div class="form-group">
+            <label for="relayUrl">Relay URL</label>
+            <input id="relayUrl" value="https://momobridge-relay.onrender.com" placeholder="https://your-relay.com" />
+          </div>
+          <div class="form-group">
+            <label for="apiKey">API Key</label>
+            <input id="apiKey" value="mb_8cea02aa7af8f797ca900a9734798129b29bf5b2b9f05bd0b777539f68329dbe" placeholder="mb_..." />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="amount">Amount (GH₵)</label>
+              <input id="amount" type="number" step="0.01" value="18.00" />
+            </div>
+            <div class="form-group">
+              <label for="currencySymbol">Currency</label>
+              <input id="currencySymbol" value="GH₵" />
+            </div>
+          </div>
+          <div class="demo-mode-buttons">
+            <button class="demo-mode-btn" onclick="runPopup()">↕ Popup</button>
+            <button class="demo-mode-btn" onclick="runInline()">⊞ Inline</button>
+            <button class="demo-mode-btn" onclick="runRedirect()">↗ Redirect</button>
+          </div>
+        </div>
+        <div class="demo-preview">
+          <h3>Preview</h3>
+          <div id="inline-container"></div>
+          <div class="demo-log" id="log">Waiting for verification...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Download ─────────────────────────────────────── -->
+  <section class="section download-section" id="download">
+    <div class="container">
+      <div class="section-label">Get Started</div>
+      <h2 class="section-title">Download the app,<br />deploy the relay</h2>
+      <p class="section-sub">
+        Everything you need to run MoMo Bridge. The Android app turns your phone into
+        the verifier, the relay server connects it to your website.
+      </p>
+
+      <div class="download-grid">
+        <div class="download-info">
+          <h3>📱 MoMo Bridge Android App</h3>
+          <p>The app that runs on your phone. Install it, generate an API key, and connect it to your relay. No Play Store account required.</p>
+          <ul>
+            <li>API 26+ (Android 8.0+)</li>
+            <li>ARM64 &amp; x86_64</li>
+            <li>Sideload-ready APK</li>
+            <li>No Google services required</li>
+            <li>Open source — MIT license</li>
+          </ul>
+        </div>
+        <div class="download-card">
+          <div class="download-card-icon">📦</div>
+          <h3>MoMo Bridge v1.0.0</h3>
+          <p>Debug APK — ready to sideload</p>
+          <a href="#" class="btn-primary" onclick="alert('APK download not yet hosted. Build from source: cd MomoBridge && ./gradlew assembleDebug')">↓ Download APK</a>
+          <div class="version">SHA-256: build from source to verify</div>
+          <div class="build-instructions">
+            <strong>Build from source:</strong><br />
+            <code style="font-size:12px">git clone https://github.com/QuayeDNA/MomoBridge</code><br />
+            <code style="font-size:12px">cd momobridge &amp;&amp; ./gradlew assembleDebug</code><br />
+            APK at <code style="font-size:12px">app/build/outputs/apk/debug/</code>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:var(--space-2xl);padding:var(--space-xl);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg)">
+        <h3 style="font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.02em;font-variation-settings:'SOFT' 60,'WONK' 1;margin-bottom:var(--space-md)">🔁 Deploy the Relay Server</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg)">
+          <div>
+            <p style="font-size:14px;color:var(--color-text-secondary);line-height:1.7">The relay is a single-file Bun server. Deploy it anywhere — Render, Fly.io, Railway, or a $5 VPS.</p>
+            <div class="code-block" style="margin-top:var(--space-md)"><span class="comment"># One-command deploy (Render)</span>
+git clone https://github.com/QuayeDNA/MomoBridge
+cd momobridge/relay
+bun install
+bun run index.ts
+
+<span class="comment"># Environment</span>
+PORT=8080</div>
+          </div>
+          <div>
+            <p style="font-size:14px;color:var(--color-text-secondary);line-height:1.7">Connect the Android app to your relay URL, embed the widget on your site, and payments verify in real time.</p>
+            <div class="code-block" style="margin-top:var(--space-md)"><span class="comment"># Docker deploy</span>
+docker build -t momobridge-relay .
+docker run -p 8080:8080 momobridge-relay
+
+<span class="comment"># Health check</span>
+curl https://your-relay.com/health
+<span class="comment">// { "status": "ok", "connections": 1 }</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Footer ───────────────────────────────────────── -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" style="font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--color-accent);letter-spacing:-0.02em;font-variation-settings:'SOFT' 60,'WONK' 1">MoMo<span style="color:var(--color-text-primary)">Bridge</span></a>
+          <p>Lightweight payment verification infrastructure for Mobile Money in Ghana. Open source, self-hosted, privacy-first.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#integration">Integration</a></li>
+            <li><a href="#demo">Demo</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="https://github.com/QuayeDNA/MomoBridge" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="#">Documentation</a></li>
+            <li><a href="#">API Reference</a></li>
+            <li><a href="#">Release Notes</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="https://github.com/QuayeDNA/MomoBridge/issues" target="_blank" rel="noopener">Report Issue</a></li>
+            <li><a href="mailto:hello@momobridge.com">Email</a></li>
+            <li><a href="https://github.com/QuayeDNA" target="_blank" rel="noopener">GitHub Org</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 MoMo Bridge. MIT License.</span>
+        <span>Built with ❤️ for Ghana's digital economy</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ─── Load Widget Script ───────────────────────────── -->
+  <script src="momobridge.js"></script>
+
+  <script>
+    // ─── Mermaid Init ──────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          maxTextSize: 80000,
+          securityLevel: 'loose',
+        });
+        mermaid.run({ nodes: [document.querySelector('.mermaid')] }).catch(function () {
+          showDiagramFallback();
+        });
+      } catch (e) {
+        showDiagramFallback();
+      }
+    });
+
+    function showDiagramFallback() {
+      var wrapper = document.querySelector('.diagram-wrapper');
+      if (!wrapper) return;
+      wrapper.innerHTML =
+        '<pre style="font-family:var(--font-mono);font-size:12px;line-height:1.8;color:var(--color-text-secondary);overflow-x:auto;padding:var(--space-md);background:var(--color-ground);border-radius:var(--radius-md)">' +
+        '┌──────────────────┐  WebSocket  ┌──────────────┐  HTTP POST  ┌──────────────────────┐\n' +
+        '│  MoMo Bridge App  │◄══════════►│    Relay      │◄───────────│    Web Widget        │\n' +
+        '│  (vendor\'s phone) │             │  (switchboard)│             │  (customer\'s browser) │\n' +
+        '│  ● SMS intercept  │             │  No DB        │             │  ● Enter reference   │\n' +
+        '│  ● Room DB        │             │  No storage   │             │  ● Gets yes/no       │\n' +
+        '│  ● Verifies claims│             │  In-memory    │             └──────────┬───────────┘\n' +
+        '└──────────────────┘              └──────────────┘                        │\n' +
+        '                                                                          ▼\n' +
+        '                                                                 ┌──────────────────────┐\n' +
+        '                                                                 │  Your Website        │\n' +
+        '                                                                 │  ● Credits wallet    │\n' +
+        '                                                                 │  ● Marks paid        │\n' +
+        '                                                                 └──────────────────────┘</pre>' +
+        '<div style="margin-top:var(--space-sm);font-size:11px;color:var(--color-text-tertiary);text-align:center">' +
+        'Diagram rendering requires an HTTP server. ' +
+        'Run <code style="background:var(--color-ground);padding:2px 6px;border-radius:4px">npx serve</code> or deploy to Vercel.' +
+        '</div>';
+    }
+
+    // ─── Mobile Nav Toggle ─────────────────────────────────
+    document.getElementById('mobile-nav-toggle').addEventListener('click', function () {
+      document.getElementById('nav-links').classList.toggle('open');
+    });
+
+    document.querySelectorAll('.nav-links a').forEach(function (link) {
+      link.addEventListener('click', function () {
+        document.getElementById('nav-links').classList.remove('open');
+      });
+    });
+
+    // ─── Scroll-aware nav border ───────────────────────────
+    var navEl = document.querySelector('nav');
+    window.addEventListener('scroll', function () {
+      if (window.scrollY > 20) {
+        navEl.style.borderColor = '#1e2748';
+      } else {
+        navEl.style.borderColor = 'transparent';
+      }
+    });
+
+    // ─── Copy Code Blocks ──────────────────────────────────
+    var codeSnippets = {
+      popup: 'MoMoBridge.popup({\n  relayUrl: \'https://your-relay.com\',\n  apiKey: \'mb_...\',\n  amount: 18.00,\n  onSuccess: handleSuccess,\n  onFailure: handleFailure\n});',
+      inline: 'MoMoBridge.inline({\n  relayUrl: \'https://your-relay.com\',\n  apiKey: \'mb_...\',\n  amount: 18.00,\n  container: \'#verify-container\',\n  onSuccess: handleSuccess,\n  onFailure: handleFailure\n});',
+      redirect: 'MoMoBridge.redirect({\n  relayUrl: \'https://your-relay.com\',\n  apiKey: \'mb_...\',\n  amount: 18.00,\n  callbackUrl: \'https://myshop.com/checkout\',\n  target: \'_blank\'\n});'
+    };
+
+    function copyCode(btn, mode) {
+      var text = codeSnippets[mode];
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = '✓ Copied!';
+          setTimeout(function () { btn.textContent = '📋 Copy'; }, 2000);
+        });
+      }
+    }
+
+    // ─── Demo Logic ────────────────────────────────────────
+    function getConfig() {
+      return {
+        relayUrl: document.getElementById('relayUrl').value.trim(),
+        apiKey: document.getElementById('apiKey').value.trim(),
+        amount: parseFloat(document.getElementById('amount').value) || 0,
+        currencySymbol: document.getElementById('currencySymbol').value.trim() || 'GH\u20B5',
+      };
+    }
+
+    function log(msg, data) {
+      var el = document.getElementById('log');
+      el.textContent = msg + (data ? '\n' + JSON.stringify(data, null, 2) : '');
+    }
+
+    function runPopup() {
+      var cfg = getConfig();
+      if (!cfg.relayUrl || !cfg.apiKey) { log('ERROR: Set relayUrl and apiKey'); return; }
+      if (typeof MoMoBridge === 'undefined') { log('ERROR: MoMoBridge not loaded'); return; }
+      MoMoBridge.popup({
+        relayUrl: cfg.relayUrl,
+        apiKey: cfg.apiKey,
+        amount: cfg.amount,
+        currencySymbol: cfg.currencySymbol,
+        title: 'Verify MoMo Payment',
+        onSuccess: function (data) { log('SUCCESS', data); },
+        onFailure: function (data) { log('FAILED', data); },
+        onClose: function () { log('Popup closed'); },
+      });
+    }
+
+    function runInline() {
+      var cfg = getConfig();
+      if (!cfg.relayUrl || !cfg.apiKey) { log('ERROR: Set relayUrl and apiKey'); return; }
+      if (typeof MoMoBridge === 'undefined') { log('ERROR: MoMoBridge not loaded'); return; }
+      var container = document.getElementById('inline-container');
+      container.innerHTML = '';
+      MoMoBridge.inline({
+        relayUrl: cfg.relayUrl,
+        apiKey: cfg.apiKey,
+        amount: cfg.amount,
+        currencySymbol: cfg.currencySymbol,
+        container: container,
+        onSuccess: function (data) { log('SUCCESS', data); },
+        onFailure: function (data) { log('FAILED', data); },
+      });
+    }
+
+    function runRedirect() {
+      var cfg = getConfig();
+      if (!cfg.relayUrl || !cfg.apiKey) { log('ERROR: Set relayUrl and apiKey'); return; }
+      if (typeof MoMoBridge === 'undefined') { log('ERROR: MoMoBridge not loaded'); return; }
+      MoMoBridge.redirect({
+        relayUrl: cfg.relayUrl,
+        apiKey: cfg.apiKey,
+        amount: cfg.amount,
+        currencySymbol: cfg.currencySymbol,
+        callbackUrl: window.location.href,
+        target: '_blank',
+      });
+    }
+
+    // Listen for postMessage from widget.html (redirect callback)
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.type === 'momo_result') {
+        log('postMessage received', e.data);
+      }
+    });
+
+    // ─── Scroll-triggered reveal (IntersectionObserver) ────
+    var revealElements = document.querySelectorAll('.how-step, .feature-card, .arch-card, .mode-card');
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    revealElements.forEach(function (el) {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo)';
+      observer.observe(el);
+    });
+  </script>
+
+</body>
+</html>

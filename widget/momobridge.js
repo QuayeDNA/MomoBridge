@@ -2,7 +2,7 @@
  * MoMo Bridge — Embeddable Payment Verification Widget
  *
  * Usage:
- *   <script src="momobridge.js"></script>
+ *   <script src="https://momobridge-widget.vercel.app/momobridge.js"></script>
  *   <script>
  *     MoMoBridge.popup({
  *       relayUrl: 'https://your-relay.com',
@@ -468,7 +468,7 @@
       console.error('[MoMoBridge] relayUrl and apiKey are required');
       return;
     }
-    var base = options.widgetUrl || window.location.origin + '/widget.html';
+    var base = options.widgetUrl || 'https://momobridge-widget.vercel.app/widget.html';
     var params =
       '?relayUrl=' + encodeURIComponent(options.relayUrl) +
       '&apiKey=' + encodeURIComponent(options.apiKey) +
