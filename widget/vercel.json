@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "momobridge-widget",
+  "name": "momo-bridge",
   "headers": [
     {
       "source": "/momobridge.js",

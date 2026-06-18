@@ -1190,23 +1190,6 @@
 
       <div class="diagram-wrapper">
         <pre class="mermaid">
-%%{init: {'theme':'dark', 'themeVariables': {
-  'fontFamily': '-apple-system, system-ui, sans-serif',
-  'primaryColor': '#d4a843',
-  'primaryTextColor': '#e8edf5',
-  'primaryBorderColor': '#d4a843',
-  'lineColor': '#d4a843',
-  'secondaryColor': '#0f1424',
-  'tertiaryColor': '#1a2140',
-  'clusterBkg': '#0f1424',
-  'clusterBorder': '#1e2748',
-  'nodeBorder': '#1e2748',
-  'nodeTextColor': '#e8edf5',
-  'edgeLabelBackground': '#0a0e1a',
-  'edgeLabelColor': '#8b95b0',
-  'signalColor': '#d4a843',
-  'signalTextColor': '#e8edf5'
-}}}%%
 flowchart LR
     subgraph Phone["📱 Android App"]
         A1["✉️ SMS Intercept"]
@@ -1375,7 +1358,7 @@ flowchart LR
         <div>
           <h3 style="font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.02em;font-variation-settings:'SOFT' 60,'WONK' 1;margin-bottom:var(--space-sm)">1. Load the script</h3>
           <div class="code-block"><span class="comment">&lt;!-- Add to your checkout page --&gt;</span>
-<span class="keyword">&lt;</span><span class="fn">script</span> <span class="keyword">src</span>=<span class="string">"https://momobridge-widget.vercel.app/momobridge.js"</span><span class="keyword">&gt;&lt;/</span><span class="fn">script</span><span class="keyword">&gt;</span></div>
+<span class="keyword">&lt;</span><span class="fn">script</span> <span class="keyword">src</span>=<span class="string">"https://momo-bridge.vercel.app/momobridge.js"</span><span class="keyword">&gt;&lt;/</span><span class="fn">script</span><span class="keyword">&gt;</span></div>
         </div>
         <div>
           <h3 style="font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.02em;font-variation-settings:'SOFT' 60,'WONK' 1;margin-bottom:var(--space-sm)">2. Listen for result</h3>
@@ -1594,15 +1577,16 @@ curl https://your-relay.com/health
   <script>
     // ─── Mermaid Init ──────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
+      if (typeof mermaid === 'undefined') {
+        showDiagramFallback();
+        return;
+      }
       try {
         mermaid.initialize({
-          startOnLoad: false,
+          startOnLoad: true,
           theme: 'dark',
           maxTextSize: 80000,
           securityLevel: 'loose',
-        });
-        mermaid.run({ nodes: [document.querySelector('.mermaid')] }).catch(function () {
-          showDiagramFallback();
         });
       } catch (e) {
         showDiagramFallback();
@@ -1612,24 +1596,23 @@ curl https://your-relay.com/health
     function showDiagramFallback() {
       var wrapper = document.querySelector('.diagram-wrapper');
       if (!wrapper) return;
+      var pre = wrapper.querySelector('pre') || wrapper.querySelector('.mermaid');
+      if (!pre) return;
+      var text = pre.textContent
+        .replace(/%%.*?\n/g, '')
+        .replace(/flowchart LR\s*/, '')
+        .replace(/subgraph Phone\["[^"]*"\]/g, '┌──────────────────┐')
+        .replace(/subgraph Svr\["[^"]*"\]/g, '┌──────────────┐')
+        .replace(/subgraph Widget\["[^"]*"\]/g, '┌──────────────────────┐')
+        .replace(/subgraph Site\["[^"]*"\]/g, '┌──────────────────────┐')
+        .replace(/end/g, '└──────────────────────┘')
+        .trim();
       wrapper.innerHTML =
         '<pre style="font-family:var(--font-mono);font-size:12px;line-height:1.8;color:var(--color-text-secondary);overflow-x:auto;padding:var(--space-md);background:var(--color-ground);border-radius:var(--radius-md)">' +
-        '┌──────────────────┐  WebSocket  ┌──────────────┐  HTTP POST  ┌──────────────────────┐\n' +
-        '│  MoMo Bridge App  │◄══════════►│    Relay      │◄───────────│    Web Widget        │\n' +
-        '│  (vendor\'s phone) │             │  (switchboard)│             │  (customer\'s browser) │\n' +
-        '│  ● SMS intercept  │             │  No DB        │             │  ● Enter reference   │\n' +
-        '│  ● Room DB        │             │  No storage   │             │  ● Gets yes/no       │\n' +
-        '│  ● Verifies claims│             │  In-memory    │             └──────────┬───────────┘\n' +
-        '└──────────────────┘              └──────────────┘                        │\n' +
-        '                                                                          ▼\n' +
-        '                                                                 ┌──────────────────────┐\n' +
-        '                                                                 │  Your Website        │\n' +
-        '                                                                 │  ● Credits wallet    │\n' +
-        '                                                                 │  ● Marks paid        │\n' +
-        '                                                                 └──────────────────────┘</pre>' +
+        text +
+        '</pre>' +
         '<div style="margin-top:var(--space-sm);font-size:11px;color:var(--color-text-tertiary);text-align:center">' +
-        'Diagram rendering requires an HTTP server. ' +
-        'Run <code style="background:var(--color-ground);padding:2px 6px;border-radius:4px">npx serve</code> or deploy to Vercel.' +
+        'Diagram render unavailable — Mermaid failed to load.' +
         '</div>';
     }
 
