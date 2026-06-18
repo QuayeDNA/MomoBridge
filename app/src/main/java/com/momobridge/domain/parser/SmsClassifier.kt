@@ -17,44 +17,81 @@ object SmsClassifier {
         RegexOption.IGNORE_CASE
     )
     private val bareAmountPattern = Regex("\\b[\\d,]+\\.\\d{2}\\b")
+    private val digitRunPattern = Regex("\\b\\d{8,22}\\b")
 
-    private val otpKeywords = listOf(
-        "OTP", "one.?time.?pin", "DO NOT SHARE", "do not share",
-        "enter code", "verification code", "login code"
-    )
-    private val promoKeywords = listOf(
-        "congrats", "mashup", "pulse", "just4u", "xtratime",
-        "free 300mb", "never run out", "stay connected",
-        "dial \\*", "recharge now", "repay your"
-    )
-    private val systemKeywords = listOf(
-        "system upgrade", "planned", "scheduled maintenance",
-        "you entered the wrong pin", "wrong pin"
-    )
-
-    private val receivedKeywords = listOf(
-        "received", "credited", "deposited", "cash in",
-        "transfer from"
-    )
-    private val sentKeywords = listOf(
-        "sent to", "transferred to"
-    )
-    private val withdrawnKeywords = listOf(
-        "withdrawn", "withdrawal", "cash out"
-    )
-    private val purchaseKeywords = listOf(
-        "bought", "purchased", "airtime", "bundle", "data bundle"
-    )
-    private val paidKeywords = listOf(
-        "paid to", "paid off"
-    )
-    private val loanKeywords = listOf(
-        "loan", "flexloan", "ready loan", "xtracash"
+    private val nonTxPatterns = listOf(
+        Regex("dial\\s+\\*", RegexOption.IGNORE_CASE),
+        Regex("DO NOT SHARE", RegexOption.IGNORE_CASE),
+        Regex("enter code", RegexOption.IGNORE_CASE),
+        Regex("verification code", RegexOption.IGNORE_CASE),
+        Regex("login code", RegexOption.IGNORE_CASE),
+        Regex("once?\\s*time\\s*pin", RegexOption.IGNORE_CASE),
+        Regex("congrats", RegexOption.IGNORE_CASE),
+        Regex("mashup", RegexOption.IGNORE_CASE),
+        Regex("pulse", RegexOption.IGNORE_CASE),
+        Regex("just4u", RegexOption.IGNORE_CASE),
+        Regex("xtratime", RegexOption.IGNORE_CASE),
+        Regex("free 300mb", RegexOption.IGNORE_CASE),
+        Regex("never run out", RegexOption.IGNORE_CASE),
+        Regex("stay connected", RegexOption.IGNORE_CASE),
+        Regex("recharge now", RegexOption.IGNORE_CASE),
+        Regex("system upgrade", RegexOption.IGNORE_CASE),
+        Regex("scheduled maintenance", RegexOption.IGNORE_CASE),
+        Regex("wrong pin", RegexOption.IGNORE_CASE)
     )
 
-    private val exclusionPhrases = listOf(
-        "otp", "one time pin", "do not share", "verification",
-        "login code", "enter code"
+    private val loanPatterns = listOf(
+        Regex("flexloan", RegexOption.IGNORE_CASE),
+        Regex("ready loan", RegexOption.IGNORE_CASE),
+        Regex("sos loan", RegexOption.IGNORE_CASE),
+        Regex("loan processing fee", RegexOption.IGNORE_CASE),
+        Regex("xtratime loan", RegexOption.IGNORE_CASE),
+        Regex("xtracash", RegexOption.IGNORE_CASE),
+        Regex("repay your", RegexOption.IGNORE_CASE)
+    )
+
+    private val purchasePatterns = listOf(
+        Regex("bundle\\s+purchase\\s+(?:request|of)", RegexOption.IGNORE_CASE),
+        Regex("purchase\\s+request\\s+of", RegexOption.IGNORE_CASE),
+        Regex("bought\\s+(?:a )?(?:GH[₵S]?|₵|GHS)?\\s*[\\d,]+\\s+of\\s+airtime", RegexOption.IGNORE_CASE),
+        Regex("airtime\\s+for\\s+\\d+", RegexOption.IGNORE_CASE),
+        Regex("paid\\s+off", RegexOption.IGNORE_CASE),
+        Regex("service charge", RegexOption.IGNORE_CASE),
+        Regex("principal", RegexOption.IGNORE_CASE),
+        Regex("\\bairtime\\s+(?:of|purchase)\\b", RegexOption.IGNORE_CASE),
+        // "You have received airtime of" is a purchase (airtime bought for someone)
+        Regex("received\\s+airtime\\s+of", RegexOption.IGNORE_CASE),
+        // "your bundle purchase request ... has been received" — a purchase confirmation
+        Regex("bundle\\s+purchase.*has been received", RegexOption.IGNORE_CASE),
+        Regex("data bundle", RegexOption.IGNORE_CASE)
+    )
+
+    private val withdrawnPatterns = listOf(
+        Regex("withdrawn", RegexOption.IGNORE_CASE),
+        Regex("withdrawal", RegexOption.IGNORE_CASE),
+        Regex("cash out", RegexOption.IGNORE_CASE)
+    )
+
+    private val sentPatterns = listOf(
+        Regex("sent\\s+to", RegexOption.IGNORE_CASE),
+        Regex("transferred\\s+to", RegexOption.IGNORE_CASE)
+    )
+
+    private val receivedShape = Regex(
+        "(?:have|has)\\s+received\\s+(?:GH[₵S]?|₵|GHS)\\s*[\\d,.]+\\s+from",
+        RegexOption.IGNORE_CASE
+    )
+    private val creditedShape = Regex(
+        "(?:credited|deposited)\\s+(?:GH[₵S]?|₵|GHS)\\s*[\\d,.]",
+        RegexOption.IGNORE_CASE
+    )
+    private val paymentReceivedShape = Regex(
+        "payment\\s+received\\s+for\\s+(?:GH[₵S]?|₵|GHS)",
+        RegexOption.IGNORE_CASE
+    )
+    private val cashInShape = Regex(
+        "cash\\s+in\\s+(?:received|of)\\s+(?:GH[₵S]?|₵|GHS)",
+        RegexOption.IGNORE_CASE
     )
 
     fun classify(body: String): SmsAction {
@@ -62,40 +99,38 @@ object SmsClassifier {
         if (lower.isBlank()) return SmsAction.NON_TX
 
         val hasMoney = moneyPattern.containsMatchIn(body) ||
-            bareAmountPattern.containsMatchIn(body)
+            bareAmountPattern.containsMatchIn(body) ||
+            digitRunPattern.containsMatchIn(body)
+        val isNonTx = nonTxPatterns.any { it.containsMatchIn(body) }
+        val isLoan = loanPatterns.any { it.containsMatchIn(body) }
+        val isPurchase = purchasePatterns.any { it.containsMatchIn(body) }
+        val isWithdrawn = withdrawnPatterns.any { it.containsMatchIn(body) }
+        val isSent = sentPatterns.any { it.containsMatchIn(body) }
 
-        val hasOtp = otpKeywords.any { lower.contains(it) }
-        val hasPromo = promoKeywords.any { lower.contains(it) }
-        val hasSystem = systemKeywords.any { lower.contains(it) }
-        val hasReceived = receivedKeywords.any { lower.contains(it) }
-        val hasSent = sentKeywords.any { lower.contains(it) }
-        val hasWithdrawn = withdrawnKeywords.any { lower.contains(it) }
-        val hasPurchase = purchaseKeywords.any { lower.contains(it) }
-        val hasPaid = paidKeywords.any { lower.contains(it) }
-        val hasLoan = loanKeywords.any { lower.contains(it) }
-        val isExcluded = exclusionPhrases.any { lower.contains(it) }
+        if (isNonTx && !hasMoney) return SmsAction.NON_TX
 
-        if (isExcluded && !hasMoney) return SmsAction.NON_TX
-        if (hasOtp && !hasMoney) return SmsAction.NON_TX
-        if (hasPromo && !hasMoney) return SmsAction.NON_TX
-        if (hasSystem) return SmsAction.NON_TX
+        if (isLoan) return SmsAction.LOAN
 
-        if (!hasMoney) return SmsAction.NON_TX
+        if (isPurchase) return SmsAction.PURCHASE
 
-        if (hasLoan) return SmsAction.LOAN
+        if (isWithdrawn) return SmsAction.WITHDRAWN
 
-        if (hasReceived) return SmsAction.RECEIVED
+        if (isSent) return SmsAction.SENT
 
-        if (hasSent) return SmsAction.SENT
-        if (hasWithdrawn) return SmsAction.WITHDRAWN
-        if (hasPurchase) return SmsAction.PURCHASE
-        if (hasPaid) return SmsAction.BILL_PAYMENT
+        if (receivedShape.containsMatchIn(body) ||
+            creditedShape.containsMatchIn(body) ||
+            paymentReceivedShape.containsMatchIn(body) ||
+            cashInShape.containsMatchIn(body)
+        ) return SmsAction.RECEIVED
 
-        val hasSentContext = Regex("\\b(sent|transferred|paid)\\b", RegexOption.IGNORE_CASE)
-            .containsMatchIn(body) &&
-            !Regex("\\b(received|credited|deposited)\\b", RegexOption.IGNORE_CASE)
-                .containsMatchIn(body)
-        if (hasSentContext) return SmsAction.SENT
+        val hasReceivedWord = Regex(
+            "\\b(?:received|credited|deposited)\\b", RegexOption.IGNORE_CASE
+        ).containsMatchIn(body)
+        val hasSentWord = Regex(
+            "\\b(?:sent|transferred|paid)\\b", RegexOption.IGNORE_CASE
+        ).containsMatchIn(body)
+
+        if (hasReceivedWord && !hasSentWord && hasMoney) return SmsAction.RECEIVED
 
         return SmsAction.NON_TX
     }

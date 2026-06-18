@@ -7,8 +7,10 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.momobridge.MomoBridgeApp
 import com.momobridge.R
+import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.data.repository.SmsSourceRepository
 import com.momobridge.di.RegularPrefs
+import com.momobridge.domain.usecase.LlmFallbackUseCase
 import com.momobridge.domain.parser.SmsParser
 import com.momobridge.domain.usecase.ProcessSmsUseCase
 import com.momobridge.ui.MainActivity
@@ -24,6 +26,7 @@ class SmsListenerService : Service() {
 
     @Inject lateinit var processSmsUseCase: ProcessSmsUseCase
     @Inject lateinit var smsSourceRepository: SmsSourceRepository
+    @Inject lateinit var llmFallbackUseCase: LlmFallbackUseCase
     @Inject @RegularPrefs lateinit var regularPrefs: SharedPreferences
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -52,11 +55,55 @@ class SmsListenerService : Service() {
             }
 
             scope.launch {
-                processSmsUseCase(parsed)
+                val isGood = parsed.confidence >= 0.6 &&
+                    parsed.reference != null && parsed.amount != null
+                val status = if (isGood) SmsTransactionEntity.PENDING else SmsTransactionEntity.FAILED
+                processSmsUseCase(parsed, status)
+
+                if (isGood) {
+                    smsSourceRepository.resetFailureCount(sender)
+                } else {
+                    smsSourceRepository.incrementFailureCount(sender)
+                    val source = smsSourceRepository.findSourceByAddress(sender)
+                    if (source != null && source.consecutiveParseFailures >= 3) {
+                        postRetrainNotification(sender, source.label, body)
+                        // Layer 5: try LLM fallback
+                        if (llmFallbackUseCase.isAvailable()) {
+                            val llmResult = llmFallbackUseCase.extract(body, timestamp, sender)
+                            if (llmResult != null) {
+                                processSmsUseCase(llmResult, SmsTransactionEntity.PENDING)
+                            }
+                        }
+                    }
+                }
             }
         }
 
         return START_STICKY
+    }
+
+    private fun postRetrainNotification(senderAddress: String, label: String, smsBody: String) {
+        val notification = NotificationCompat.Builder(this, MomoBridgeApp.CHANNEL_ID_EVENTS)
+            .setContentTitle("SMS format may have changed")
+            .setContentText("The $label format seems to have changed. Tap to update.")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setAutoCancel(true)
+            .setContentIntent(
+                android.app.PendingIntent.getActivity(
+                    this,
+                    0,
+                    Intent(this, com.momobridge.ui.MainActivity::class.java).apply {
+                        putExtra(EXTRA_RETRAIN_SENDER, senderAddress)
+                        putExtra(EXTRA_RETRAIN_LABEL, label)
+                        putExtra(EXTRA_RETRAIN_BODY, smsBody)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    },
+                    android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            )
+            .build()
+        val manager = getSystemService(android.app.NotificationManager::class.java)
+        manager.notify(RETRAIN_NOTIFICATION_ID, notification)
     }
 
     private fun buildNotification() = NotificationCompat.Builder(this, MomoBridgeApp.CHANNEL_ID)
@@ -82,5 +129,9 @@ class SmsListenerService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 1001
+        private const val RETRAIN_NOTIFICATION_ID = 1002
+        const val EXTRA_RETRAIN_SENDER = "retrain_sender_address"
+        const val EXTRA_RETRAIN_LABEL = "retrain_label"
+        const val EXTRA_RETRAIN_BODY = "retrain_sms_body"
     }
 }

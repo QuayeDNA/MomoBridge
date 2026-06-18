@@ -82,12 +82,12 @@ class SenderConfigViewModel @Inject constructor(
 
     private var currentRule: ParsingRule? = null
 
-    fun initForSender(senderAddress: String, label: String) {
+    fun initForSender(senderAddress: String, label: String, prefilledBody: String = "") {
         _uiState.value = _uiState.value.copy(senderAddress = senderAddress, label = label)
-        scanInbox(senderAddress)
+        scanInbox(senderAddress, prefilledBody)
     }
 
-    private fun scanInbox(senderAddress: String) {
+    private fun scanInbox(senderAddress: String, prefilledBody: String = "") {
         viewModelScope.launch {
             val messages = withContext(Dispatchers.IO) {
                 val inboxMessages = mutableListOf<InboxMessage>()
@@ -118,6 +118,13 @@ class SenderConfigViewModel @Inject constructor(
                 messages = messages,
                 validationMessages = messages.drop(1).take(5)
             )
+
+            if (prefilledBody.isNotBlank()) {
+                val match = messages.firstOrNull { it.body == prefilledBody }
+                if (match != null) {
+                    selectMessage(match)
+                }
+            }
         }
     }
 

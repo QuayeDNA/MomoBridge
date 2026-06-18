@@ -46,12 +46,16 @@ sealed class Screen(val route: String) {
     data object Transactions : Screen("transactions")
     data object ApiKeys : Screen("api_keys")
     data object Settings : Screen("settings")
-    data object SenderConfig : Screen("sender_config/{senderAddress}/{label}")
+    data object SenderConfig : Screen("sender_config/{senderAddress}/{label}?body={body}")
     data object Help : Screen("help")
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    retrainSenderAddress: String? = null,
+    retrainLabel: String? = null,
+    retrainSmsBody: String? = null
+) {
     val context = LocalContext.current
     val navController = rememberNavController()
     val prefs = remember {
@@ -76,6 +80,16 @@ fun AppNavigation() {
                 }
             }
             permissionLauncher.launch(perms.toTypedArray())
+        }
+    }
+
+    // Handle retrain deep-link from notification
+    LaunchedEffect(retrainSenderAddress, retrainLabel, retrainSmsBody) {
+        if (retrainSenderAddress != null && retrainLabel != null) {
+            // Navigate to sender config after splash/main is loaded
+            navController.navigate(
+                "sender_config/${retrainSenderAddress}/${retrainLabel}?body=${retrainSmsBody ?: ""}"
+            )
         }
     }
 
@@ -122,14 +136,21 @@ fun AppNavigation() {
             Screen.SenderConfig.route,
             arguments = listOf(
                 navArgument("senderAddress") { type = NavType.StringType },
-                navArgument("label") { type = NavType.StringType }
+                navArgument("label") { type = NavType.StringType },
+                navArgument("body") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
+                }
             )
         ) { backStackEntry ->
             val senderAddress = backStackEntry.arguments?.getString("senderAddress") ?: ""
             val label = backStackEntry.arguments?.getString("label") ?: senderAddress
+            val prefilledBody = backStackEntry.arguments?.getString("body") ?: ""
             SenderConfigScreen(
                 senderAddress = senderAddress,
                 label = label,
+                prefilledSmsBody = prefilledBody,
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
             )

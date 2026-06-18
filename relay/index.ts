@@ -180,6 +180,93 @@ Bun.serve({
       return;
     }
 
+    // POST /llm-extract — app asks relay to parse SMS via Groq
+    if (req.method === "POST" && path === "/llm-extract") {
+      const groqKey = process.env.GROQ_API_KEY;
+      if (!groqKey) {
+        return new Response(JSON.stringify({ error: "GROQ_API_KEY not configured on relay" }), {
+          status: 501,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+      }
+
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "invalid json" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+      }
+
+      const smsBody = body.body;
+      if (!smsBody) {
+        return new Response(JSON.stringify({ error: "missing body" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+      }
+
+      try {
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+            max_tokens: 256,
+            messages: [
+              {
+                role: "system",
+                content: "You extract mobile money transaction details from SMS messages. Respond with ONLY a JSON object having keys: reference (string or null), amount (number or null), senderName (string or null), senderPhone (string or null), balanceAfter (number or null). Use null for missing fields. No other text.",
+              },
+              {
+                role: "user",
+                content: smsBody,
+              },
+            ],
+          }),
+        });
+
+        const groqData = await groqResponse.json() as any;
+        const text = groqData?.choices?.[0]?.message?.content;
+        if (!text) {
+          return new Response(JSON.stringify({ error: "groq returned no content" }), {
+            status: 502,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          });
+        }
+
+        // Parse the extracted JSON and validate
+        try {
+          const extracted = JSON.parse(text.trim());
+          if (extracted.reference && extracted.amount !== undefined && extracted.amount !== null) {
+            return new Response(JSON.stringify({ success: true, data: extracted }), {
+              status: 200,
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            });
+          }
+          return new Response(JSON.stringify({ success: false, error: "missing required fields" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          });
+        } catch {
+          return new Response(JSON.stringify({ success: false, error: "invalid json from groq" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          });
+        }
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: `groq request failed: ${err.message}` }), {
+          status: 502,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+      }
+    }
+
     // POST /claim — widget sends claim request
     if (req.method === "POST" && path === "/claim") {
       let body: any;

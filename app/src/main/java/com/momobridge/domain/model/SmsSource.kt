@@ -15,7 +15,8 @@ data class SmsSource(
     val type: SenderType = SenderType.INCOMING,
     val enabled: Boolean = true,
     val parsingRule: ParsingRule? = null,
-    val trainingMessages: List<String> = emptyList()
+    val trainingMessages: List<String> = emptyList(),
+    val consecutiveParseFailures: Int = 0
 )
 
 data class ParsingRule(

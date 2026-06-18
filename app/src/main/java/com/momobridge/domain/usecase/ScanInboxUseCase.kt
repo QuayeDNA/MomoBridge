@@ -122,11 +122,16 @@ class ScanInboxUseCase @Inject constructor() {
                             continue
                         }
 
-                        if (parsed.reference in alreadySeen) {
+                        if (parsed.reference == null) {
                             skipped++
                             continue
                         }
-                        alreadySeen.add(parsed.reference)
+                        val ref = parsed.reference!!
+                        if (ref in alreadySeen) {
+                            skipped++
+                            continue
+                        }
+                        alreadySeen.add(ref)
 
                         val saved = saveTransaction(parsed)
                         if (saved) {

@@ -5,8 +5,6 @@ import com.momobridge.domain.model.ParsingRule
 
 object SmsParser {
 
-    private const val HEURISTIC_CONFIDENCE_THRESHOLD = 0.6
-
     fun parse(body: String, rule: ParsingRule, receivedAt: Long, sender: String = ""): ParsedTransaction? {
         val action = SmsClassifier.classify(body)
         if (action != SmsAction.RECEIVED) return null
@@ -15,9 +13,7 @@ object SmsParser {
         if (ruleResult != null) return ruleResult
 
         val heuristicResult = tryParseHeuristic(body, receivedAt, sender)
-        if (heuristicResult != null) return heuristicResult
-
-        return null
+        return heuristicResult
     }
 
     fun parseHeuristic(body: String, receivedAt: Long, sender: String = ""): ParsedTransaction? {
@@ -40,17 +36,33 @@ object SmsParser {
 
         val amount = rawAmount.replace(",", "").toDoubleOrNull() ?: return null
 
+        val name = if (rule.senderNamePattern == "USE_HEURISTIC") {
+            val extracted = FieldExtractor.extract(body)
+            extracted.senderName
+        } else {
+            rule.senderNamePattern
+                ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) }
+                ?.trim()
+        }
+
+        val phone = if (rule.senderPhonePattern == "USE_HEURISTIC") {
+            val extracted = FieldExtractor.extract(body)
+            extracted.senderPhone
+        } else {
+            rule.senderPhonePattern
+                ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) }
+        }
+
+        val balance = rule.balancePattern
+            ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) }
+            ?.replace(",", "")?.toDoubleOrNull()
+
         return ParsedTransaction(
             reference = refMatch.uppercase().trim(),
             amount = amount,
-            senderName = rule.senderNamePattern
-                ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) }
-                ?.trim(),
-            senderPhone = rule.senderPhonePattern
-                ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) },
-            balanceAfter = rule.balancePattern
-                ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) }
-                ?.replace(",", "")?.toDoubleOrNull(),
+            senderName = name,
+            senderPhone = phone,
+            balanceAfter = balance,
             network = sender,
             receivedAt = receivedAt,
             rawSms = body,
@@ -65,14 +77,10 @@ object SmsParser {
         sender: String
     ): ParsedTransaction? {
         val extracted = FieldExtractor.extract(body)
-        if (extracted.confidence < HEURISTIC_CONFIDENCE_THRESHOLD) return null
-
-        val ref = extracted.reference ?: return null
-        val amount = extracted.amount ?: return null
 
         return ParsedTransaction(
-            reference = ref.uppercase().trim(),
-            amount = amount,
+            reference = extracted.reference?.uppercase()?.trim(),
+            amount = extracted.amount,
             senderName = extracted.senderName,
             senderPhone = extracted.senderPhone,
             balanceAfter = extracted.balanceAfter,

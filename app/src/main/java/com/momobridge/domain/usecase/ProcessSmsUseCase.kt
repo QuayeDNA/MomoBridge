@@ -9,7 +9,7 @@ import javax.inject.Singleton
 class ProcessSmsUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    suspend operator fun invoke(parsed: ParsedTransaction): Long {
-        return repository.saveTransaction(parsed)
+    suspend operator fun invoke(parsed: ParsedTransaction, status: String = "PENDING"): Long {
+        return repository.saveTransaction(parsed, status)
     }
 }

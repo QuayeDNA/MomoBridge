@@ -66,6 +66,28 @@ class SmsSourceRepository @Inject constructor(
 
     fun hasAnyRule(): Boolean = getSources().any { it.parsingRule != null }
 
+    fun findSourceByAddress(senderAddress: String): SmsSource? {
+        return getSources().firstOrNull { it.senderAddress.equals(senderAddress, ignoreCase = true) }
+    }
+
+    fun incrementFailureCount(senderAddress: String) {
+        val sources = getSources().toMutableList()
+        val idx = sources.indexOfFirst { it.senderAddress.equals(senderAddress, ignoreCase = true) }
+        if (idx >= 0) {
+            sources[idx] = sources[idx].copy(consecutiveParseFailures = sources[idx].consecutiveParseFailures + 1)
+            saveSources(sources)
+        }
+    }
+
+    fun resetFailureCount(senderAddress: String) {
+        val sources = getSources().toMutableList()
+        val idx = sources.indexOfFirst { it.senderAddress.equals(senderAddress, ignoreCase = true) }
+        if (idx >= 0) {
+            sources[idx] = sources[idx].copy(consecutiveParseFailures = 0)
+            saveSources(sources)
+        }
+    }
+
     fun clearAll() {
         prefs.edit().remove(KEY_SOURCES).apply()
     }

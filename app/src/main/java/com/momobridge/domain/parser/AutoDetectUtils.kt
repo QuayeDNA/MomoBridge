@@ -134,27 +134,13 @@ object AutoDetectUtils {
             else -> "(?:GH[₵S]?|₵|GHS)\\s*([\\d,]+\\.?\\d*)"
         }
 
-        val senderNamePattern = when {
-            fields.senderName.isNotBlank() && isMtnFormat ->
-                "(?:Payment\\s+received|Cash\\s+In\\s+received)\\s+for\\s+(?:GH[₵S]?|₵|GHS)\\s*[\\d,.]+\\s+from\\s+([A-Za-z0-9\\s.&/-]+?)(?:\\.\\s*(?:Current\\s+Balance|Transaction\\s+ID))"
-            fields.senderName.isNotBlank() && isTCashTransferFrom ->
-                "Transfer\\s+From:\\s*\\d{10,15}-([A-Za-z\\s./]+?)(?=\\s+on\\s)"
-            fields.senderName.isNotBlank() && isTCashPhoneDash ->
-                "from\\s+\\d{10,15}\\s*-\\s*([A-Za-z\\s./]+?)(?=\\s+on\\s|\\$)"
-            fields.senderName.isNotBlank() ->
-                "(?:from|by|sender)[:\\s]+([A-Za-z\\s.]+?)(?=\\s+(?:0\\d{9}|233\\d{9}|\\d{5,}|\\())"
-            else -> null
-        }
+        val senderNamePattern = if (fields.senderName.isNotBlank()) {
+            "USE_HEURISTIC"
+        } else null
 
-        val senderPhonePattern = when {
-            fields.senderPhone.isNotBlank() && isTCashTransferFrom ->
-                "Transfer\\s+From:\\s*(\\d{10,15})-"
-            fields.senderPhone.isNotBlank() && isTCashPhoneDash ->
-                "from\\s+(\\d{10,15})\\s*-"
-            fields.senderPhone.isNotBlank() ->
-                "(0\\d{9}|233\\d{9})"
-            else -> null
-        }
+        val senderPhonePattern = if (fields.senderPhone.isNotBlank()) {
+            "USE_HEURISTIC"
+        } else null
 
         val balancePattern = if (fields.balance.isNotBlank()) {
             when {

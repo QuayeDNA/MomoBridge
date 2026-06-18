@@ -49,11 +49,12 @@ import com.momobridge.ui.theme.MomoTypography
 fun SenderConfigScreen(
     senderAddress: String,
     label: String,
+    prefilledSmsBody: String = "",
     onBack: () -> Unit,
     onSaved: () -> Unit,
     viewModel: SenderConfigViewModel = hiltViewModel()
 ) {
-    viewModel.initForSender(senderAddress, label)
+    viewModel.initForSender(senderAddress, label, prefilledSmsBody)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (state.saved) {

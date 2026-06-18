@@ -22,6 +22,7 @@ class MomoBridgeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        createEventChannel()
         connectRelayIfNeeded()
     }
 

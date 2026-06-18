@@ -33,36 +33,39 @@ class TransactionRepository @Inject constructor(
         }
     }
 
-    suspend fun saveTransaction(parsed: ParsedTransaction): Long {
+    suspend fun saveTransaction(parsed: ParsedTransaction, status: String = SmsTransactionEntity.PENDING): Long {
         val expiresAt = computeExpiresAt(parsed.receivedAt)
         val entity = SmsTransactionEntity(
             network = parsed.network,
-            reference = parsed.reference,
-            amount = parsed.amount,
+            reference = parsed.reference ?: "",
+            amount = parsed.amount ?: 0.0,
             senderName = parsed.senderName,
             senderPhone = parsed.senderPhone,
             balanceAfter = parsed.balanceAfter,
             rawSms = parsed.rawSms,
             receivedAt = parsed.receivedAt,
             expiresAt = expiresAt,
-            status = SmsTransactionEntity.PENDING
+            status = status
         )
-        return dao.insert(entity)
+        return dao.insertOrIgnore(entity)
     }
 
     suspend fun saveHistoricalTransaction(parsed: ParsedTransaction): Boolean {
         val expiresAt = computeExpiresAt(parsed.receivedAt)
+        val status = if (parsed.confidence >= 0.6 &&
+            parsed.reference != null && parsed.amount != null
+        ) SmsTransactionEntity.PENDING else SmsTransactionEntity.FAILED
         val entity = SmsTransactionEntity(
             network = parsed.network,
-            reference = parsed.reference,
-            amount = parsed.amount,
+            reference = parsed.reference ?: "",
+            amount = parsed.amount ?: 0.0,
             senderName = parsed.senderName,
             senderPhone = parsed.senderPhone,
             balanceAfter = parsed.balanceAfter,
             rawSms = parsed.rawSms,
             receivedAt = parsed.receivedAt,
             expiresAt = expiresAt,
-            status = SmsTransactionEntity.PENDING
+            status = status
         )
         val id = dao.insertOrIgnore(entity)
         return id != -1L
