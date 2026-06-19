@@ -1,22 +1,28 @@
-# MoMo Bridge — Android App
+# MoMo Bridge
 
-A standalone Android application that acts as a **local verification authority** for Mobile Money payments in Ghana. Intercepts MoMo SMS confirmations from telecom providers (MTN, Telecel, AT, T-CASH), parses them, and stores them locally. Generates API keys per store/location and connects to a lightweight relay server via WebSocket to verify payments in real time — no backend database required.
+**On-device Mobile Money verification for Ghana.** A standalone Android app that intercepts MoMo SMS (MTN, Telecel, AT, T-CASH), parses them locally, and verifies payments via WebSocket — no backend database required.
 
 ## How It Works
 
-1. SMS received → app parses and stores locally as `PENDING`
-2. Customer enters transaction reference on a website widget
-3. Widget sends claim via relay → relay forwards to app via WebSocket
-4. App checks local Room database → confirms or rejects the payment
-5. Result flows back to the website in real time
+1. **SMS received** — app intercepts and parses the SMS, storing it locally as `PENDING` in Room (SQLite)
+2. **Multi-store API keys** — generate one key per store/location; all route to the same app via a shared relay
+3. **Claim flow** — a website widget sends a claim request through the relay → relay forwards it via WebSocket to the app → app checks its local DB → confirms or rejects in real time
+4. **Push notifications** — instant alerts when a payment is confirmed, already claimed, or expires
 
-## Key Features
+The relay is a **stateless message switchboard** with zero storage. The app is the sole source of truth.
 
-- **Multi-key support** — one API key per store/location, all routed to the same app
-- **Local-first** — all transaction data stored on-device with Room (SQLite)
-- **Zero backend** — relay is a stateless message switchboard with no storage
-- **Config-driven SMS parsing** — add new sender formats without code changes
-- **Jetpack Compose UI** — Material 3 design system
+## Features
+
+- **SMS parsing engine** — regex-based, config-driven parser with heuristic fallback; supports all major Ghanaian networks
+- **Auto-detect wizard** — scans your SMS inbox to build parsing rules for new sender formats
+- **Multi-key management** — create, revoke, and reactivate API keys per store with usage tracking
+- **Transaction log** — full history with status filtering (pending/confirmed/failed/expired) and store attribution
+- **Dashboard** — summary counts, recent transactions, live connection status
+- **Real-time verification** — WebSocket connection to relay server with auto-reconnect and heartbeat
+- **Push notifications** — `CHANNEL_ID_EVENTS` (IMPORTANCE_HIGH) fires for confirmed claims, already-confirmed warnings, expired transactions, and claim errors
+- **Widget integration** — embeddable `momobridge.js` with popup/inline/redirect modes; dark financial terminal UI with gold accent
+- **Relay server** — single-file Bun server, deployable to Render free tier
+- **LLM fallback** — when parsing repeatedly fails, delegates to Gemini Nano (on-device) for extraction
 
 ## Tech Stack
 
@@ -28,31 +34,98 @@ A standalone Android application that acts as a **local verification authority**
 | Local DB | Room (SQLite) |
 | Networking | OkHttp WebSocket |
 | Secure Storage | EncryptedSharedPreferences (AES-256) |
+| SMS Parsing | Regex + heuristic engine |
+| LLM Fallback | Gemini Nano (on-device) |
+| Relay Server | Bun (single file, zero deps) |
+| Widget | Vanilla JS (zero deps) |
+| Min SDK | 26 (Android 8.0) |
+| Target SDK | 35 |
+
+## Screenshots
+
+| Dashboard | Transactions | API Keys | Settings |
+|---|---|---|---|
+| Summary counts, recent txns, connection dot | Full log with store/status filters | Key list, revoke, reactivate | Senders, relay, expiry, about |
+
+*(Screenshots coming soon)*
 
 ## Project Structure
 
 ```
 com.momobridge/
-├── data/          — Room DB, DAOs, repositories
-├── domain/        — Models, SMS parser, use cases
-├── service/       — SMS listener, WebSocket relay client, claim handler
-├── receiver/      — SMS broadcast receiver, boot receiver
-├── di/            — Hilt modules
-└── ui/            — Compose screens, navigation, components
+├── MomoBridgeApp.kt              — Application class, notification channels
+├── data/
+│   ├── local/                    — Room entities, DAOs (sms_transactions, api_keys)
+│   └── repository/               — TransactionRepository, ApiKeyRepository, SmsSourceRepository
+├── domain/
+│   ├── model/                    — ParsedTransaction, SmsSource, ParsingRule
+│   ├── parser/                   — SmsParser, FieldExtractor, AutoDetectUtils, SmsClassifier
+│   └── usecase/                  — ProcessSmsUseCase, ScanInboxUseCase, LlmFallbackUseCase
+├── service/
+│   ├── SmsListenerService.kt     — Foreground service, expiry checker (60s)
+│   ├── RelayClient.kt            — WebSocket client, claim handler, push notifications
+│   ├── ClaimHandler.kt           — Local claim verification logic
+│   └── NotificationHelper.kt     — Push notification dispatcher
+├── receiver/
+│   ├── SmsBroadcastReceiver.kt   — SMS_RECEIVED broadcast
+│   └── BootReceiver.kt           — Restart services after reboot
+├── di/                           — AppModule, DatabaseModule, Qualifiers
+└── ui/
+    ├── splash/                   — Animated gold MB logo
+    ├── setup/                    — 4-step wizard (profile → stores → relay → senders)
+    ├── dashboard/                — Summary cards, recent list, connection dot
+    ├── transactions/             — Filterable log with detail bottom sheet
+    ├── apikeys/                  — Key CRUD with copy, revoke, usage dates
+    ├── settings/                 — Category menu with 4 sub-screens
+    ├── help/                     — FAQ / usage guide
+    ├── navigation/               — AppNavigation, BottomNavBar, MainTabViewModel
+    └── components/               — TransactionCard, StatusBadge, StepIndicator, etc.
 ```
 
 ## External Components
 
 ```
-relay/             — Bun relay server (single file, zero dependencies)
-widget/            — Embeddable HTML/JS verification widget
+project-root/
+├── relay/
+│   └── index.ts              — Bun WebSocket + HTTP relay server (deploy to Render)
+├── widget/
+│   ├── momobridge.js          — Embeddable widget (popup/inline/redirect)
+│   ├── widget.html            — Standalone verification page
+│   ├── index.html             — Landing page / docs
+│   └── vercel.json            — Vercel deployment config
+└── AGENTS.md                 — Full architecture documentation
 ```
 
-## Build
+## Build & Install
 
 ```bash
+# Build debug APK
 ./gradlew assembleDebug
+
+# Install on connected device
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## Deploy Relay
+
+```bash
+cd relay
+bun run index.ts
+```
+
+Deploy to Render: set root to `relay`, start command `bun run index.ts`, health check `/health`.
+
+## Deploy Widget
+
+Push `widget/` to GitHub — Vercel auto-deploys from the `widget/` directory.
+
+## Permissions
+
+- `RECEIVE_SMS` / `READ_SMS` — intercept MoMo SMS
+- `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC` — listener + relay
+- `POST_NOTIFICATIONS` — Android 13+ push alerts
+- `RECEIVE_BOOT_COMPLETED` — restart after reboot
+- `INTERNET` + `ACCESS_NETWORK_STATE` — WebSocket connection
 
 ## License
 
