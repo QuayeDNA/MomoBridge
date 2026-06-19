@@ -1,5 +1,8 @@
 /**
- * MoMo Bridge — Embeddable Payment Verification Widget
+ * MoMo Bridge — Payment Verification Widget
+ *
+ * Design: Cold, precise financial terminal. Dark ground (#0A0E1A),
+ * gold (#D4A843) single accent. Mechanical, not consumer.
  *
  * Usage:
  *   <script src="https://momo-bridge.vercel.app/momobridge.js"></script>
@@ -19,171 +22,258 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.1.0';
-
+  var VERSION = '1.2.0';
   var DEFAULT_CURRENCY = 'GH\u20B5';
-
-  // ─── Utilities ──────────────────────────────────────────────────────────────
-
-  function isElement(el) {
-    return typeof el === 'object' && el !== null && el.nodeType === 1;
-  }
-
-  function queryEl(selector) {
-    if (isElement(selector)) return selector;
-    if (typeof selector === 'string') return document.querySelector(selector);
-    return null;
-  }
-
-  function createEl(tag, attrs, children) {
-    var el = document.createElement(tag);
-    if (attrs)
-      Object.keys(attrs).forEach(function (k) {
-        if (k === 'style' && typeof attrs[k] === 'object')
-          Object.assign(el.style, attrs[k]);
-        else if (k === 'className') el.className = attrs[k];
-        else el.setAttribute(k, attrs[k]);
-      });
-    if (children)
-      children.forEach(function (c) {
-        if (typeof c === 'string') el.appendChild(document.createTextNode(c));
-        else if (c) el.appendChild(c);
-      });
-    return el;
-  }
-
-  function friendlyMessage(data) {
-    var m = (data.message || '').toLowerCase();
-    if (data.confirmed) return 'Payment verified by your phone.';
-    if (m.indexOf('already') !== -1) return 'This payment was already confirmed.';
-    if (m.indexOf('invalid') !== -1) return 'Reference not found in recent transactions.';
-    if (m.indexOf('amount') !== -1) return 'The amount doesn\u2019t match what was sent.';
-    if (m.indexOf('expired') !== -1) return 'This reference has expired.';
-    if (m.indexOf('offline') !== -1) return 'The store phone is currently offline.';
-    if (m.indexOf('network') !== -1) return 'Could not reach the verification server.';
-    return m || 'Verification failed.';
-  }
-
-  // ─── Styles ─────────────────────────────────────────────────────────────────
-
   var STYLES_ID = '__momobridge_styles';
+  var FONTS_LOADED = false;
+
+  // ─── Font Loader ──────────────────────────────────────────────────────────
+
+  function loadFonts(callback) {
+    if (FONTS_LOADED) { if (callback) callback(); return; }
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?' +
+      'family=Space+Grotesk:wght@400;500;600;700&' +
+      'family=JetBrains+Mono:wght@400;500;700&' +
+      'family=Inter:wght@400;500;600&' +
+      'display=swap';
+    link.onload = function () {
+      FONTS_LOADED = true;
+      if (callback) callback();
+    };
+    link.onerror = function () {
+      FONTS_LOADED = true;
+      if (callback) callback();
+    };
+    document.head.appendChild(link);
+  }
+
+  // ─── Design tokens (injected once) ────────────────────────────────────────
 
   function injectStyles() {
     if (document.getElementById(STYLES_ID)) return;
-    var css =
-      '#__mb-overlay {\
-        position:fixed;inset:0;z-index:2147483647;\
-        display:flex;align-items:center;justify-content:center;\
-        background:rgba(10,14,26,0.7);\
-        font-family:-apple-system,system-ui,sans-serif;\
-      }\
-      #__mb-modal {\
-        width:400px;max-width:92vw;\
-        background:#1a1a2e;border:1px solid #2a2a4e;border-radius:16px;\
-        box-shadow:0 20px 60px rgba(0,0,0,0.5);\
-        overflow:hidden;\
-        animation:__mb_fadeIn 0.2s ease-out;\
-      }\
-      @keyframes __mb_fadeIn {\
-        from { opacity:0; transform:scale(0.95) translateY(8px); }\
-        to { opacity:1; transform:scale(1) translateY(0); }\
-      }\
-      #__mb-header {\
-        display:flex;align-items:center;justify-content:space-between;\
-        padding:16px 20px;\
-        border-bottom:1px solid #2a2a4e;\
-      }\
-      #__mb-header h3 {\
-        margin:0;font-size:16px;font-weight:700;color:#d4a843;\
-      }\
-      #__mb-close {\
-        background:none;border:none;cursor:pointer;\
-        color:#5a6480;font-size:20px;line-height:1;padding:4px;\
-      }\
-      #__mb-close:hover { color:#e8edf5; }\
-      #__mb-body { padding:20px; }\
-      #__mb-body label {\
-        display:block;font-size:13px;color:#8b95b0;margin-bottom:4px;\
-      }\
-      #__mb-body input {\
-        width:100%;padding:10px 12px;margin-bottom:12px;\
-        background:#0f1424;border:1px solid #1e2748;border-radius:10px;\
-        color:#e8edf5;font-size:14px;outline:none;box-sizing:border-box;\
-      }\
-      #__mb-body input:focus { border-color:#d4a843; }\
-      #__mb-body input:disabled { opacity:0.5; }\
-      #__mb-body input.__mb-error-input { border-color:#ef5350; }\
-      #__mb-amount-display {\
-        display:flex;justify-content:space-between;align-items:center;\
-        padding:10px 12px;margin-bottom:12px;\
-        background:#0f1424;border:1px solid #1e2748;border-radius:10px;\
-      }\
-      #__mb-amount-display span:first-child { color:#8b95b0;font-size:13px; }\
-      #__mb-amount-display span:last-child { color:#00c853;font-weight:700;font-size:15px; }\
-      #__mb-btn {\
-        width:100%;padding:12px;margin-top:4px;\
-        background:#d4a843;color:#0a0e1a;border:none;border-radius:20px;\
-        font-size:14px;font-weight:600;cursor:pointer;\
-        transition:opacity 0.15s;\
-      }\
-      #__mb-btn:hover { opacity:0.9; }\
-      #__mb-btn:disabled { opacity:0.5;cursor:not-allowed; }\
-      #__mb-btn:active { transform:scale(0.97); }\
-      .__mb-result-card {\
-        margin-top:12px;padding:16px;border-radius:12px;\
-        text-align:center;animation:__mb_fadeIn 0.2s ease-out;\
-      }\
-      .__mb-result-success { background:rgba(0,200,83,0.1);border:1px solid rgba(0,200,83,0.3); }\
-      .__mb-result-error { background:rgba(239,83,80,0.1);border:1px solid rgba(239,83,80,0.3); }\
-      .__mb-result-warn { background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3); }\
-      .__mb-result-icon {\
-        width:40px;height:40px;border-radius:50%;\
-        display:flex;align-items:center;justify-content:center;\
-        margin:0 auto 10px;font-size:18px;font-weight:700;\
-      }\
-      .__mb-result-success .__mb-result-icon { background:rgba(0,200,83,0.2);color:#00c853; }\
-      .__mb-result-error .__mb-result-icon { background:rgba(239,83,80,0.2);color:#ef5350; }\
-      .__mb-result-warn .__mb-result-icon { background:rgba(240,180,41,0.2);color:#f0b429; }\
-      .__mb-result-title {\
-        font-size:15px;font-weight:700;margin-bottom:4px;\
-      }\
-      .__mb-result-success .__mb-result-title { color:#00c853; }\
-      .__mb-result-error .__mb-result-title { color:#ef5350; }\
-      .__mb-result-warn .__mb-result-title { color:#f0b429; }\
-      .__mb-result-amount {\
-        font-size:20px;font-weight:700;color:#e8edf5;margin:6px 0;\
-      }\
-      .__mb-result-ref {\
-        font-size:11px;color:#5a6480;font-family:monospace;\
-        background:#0f1424;padding:4px 8px;border-radius:4px;\
-        display:inline-block;margin-top:4px;\
-      }\
-      .__mb-result-message {\
-        font-size:13px;color:#8b95b0;margin-top:4px;line-height:1.4;\
-      }\
-      .__mb-result-retry {\
-        margin-top:12px;padding:8px 20px;\
-        background:transparent;color:#d4a843;border:1px solid #d4a843;\
-        border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;\
-      }\
-      .__mb-result-retry:hover { background:rgba(212,168,67,0.1); }\
-      .__mb-loading {\
-        display:flex;align-items:center;justify-content:center;gap:8px;\
-        padding:8px 0;color:#8b95b0;font-size:13px;\
-      }\
-      .__mb-spinner {\
-        width:16px;height:16px;border:2px solid #2a2a4e;\
-        border-top-color:#d4a843;border-radius:50%;\
-        animation:__mb_spin 0.6s linear infinite;\
-      }\
-      @keyframes __mb_spin { to { transform:rotate(360deg); } }\
-      .__mb-hint {\
-        margin-top:8px;padding:8px 12px;border-radius:8px;\
-        font-size:12px;color:#5a6480;\
-        background:rgba(212,168,67,0.08);\
-      }\
-      #__mb-inline-container .__mb-widget-wrapper { margin:0; }\
-      .__mb-hidden { display:none !important; }';
+
+    var css = (
+      '#__mb-overlay{' +
+        'position:fixed;inset:0;z-index:2147483647;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'background:rgba(10,14,26,0.82);' +
+        'font-family:Inter,system-ui,-apple-system,sans-serif;' +
+        'color:#E8EDF5;' +
+        'line-height:1.5;' +
+        '-webkit-font-smoothing:antialiased;' +
+      '}' +
+      '#__mb-modal{' +
+        'width:400px;max-width:92vw;' +
+        'background:#0F1424;' +
+        'border:1px solid #1E2748;' +
+        'border-radius:12px;' +
+        'box-shadow:0 24px 80px -12px rgba(0,0,0,0.5),0 8px 24px -8px rgba(0,0,0,0.3);' +
+        'overflow:hidden;' +
+        'animation:__mb_modalIn 0.25s cubic-bezier(0.19,1,0.22,1) both;' +
+      '}' +
+      '@keyframes __mb_modalIn{' +
+        'from{opacity:0;transform:scale(0.96) translateY(12px)}' +
+        'to{opacity:1;transform:scale(1) translateY(0)}' +
+      '}' +
+      '@keyframes __mb_fadeIn{' +
+        'from{opacity:0;transform:translateY(8px)}' +
+        'to{opacity:1;transform:translateY(0)}' +
+      '}' +
+      '@keyframes __mb_spin{' +
+        'to{transform:rotate(360deg)}' +
+      '}' +
+      '#__mb-header{' +
+        'display:flex;align-items:center;justify-content:space-between;' +
+        'padding:16px 20px;' +
+        'border-bottom:1px solid #1E2748;' +
+      '}' +
+      '#__mb-wordmark{' +
+        'font-family:"Space Grotesk",system-ui,sans-serif;' +
+        'font-size:16px;font-weight:700;' +
+        'letter-spacing:-0.02em;' +
+        'color:#D4A843;' +
+      '}' +
+      '#__mb-close{' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'width:32px;height:32px;' +
+        'background:none;border:1px solid #1E2748;border-radius:8px;' +
+        'cursor:pointer;' +
+        'color:#5A6480;font-size:18px;line-height:1;padding:0;' +
+        'transition:all 0.15s ease;' +
+      '}' +
+      '#__mb-close:hover{' +
+        'color:#E8EDF5;border-color:#D4A843;' +
+      '}' +
+      '#__mb-body{' +
+        'padding:24px 20px 20px;' +
+      '}' +
+      '#__mb-amount-row{' +
+        'display:flex;align-items:center;justify-content:space-between;' +
+        'padding:12px 14px;margin-bottom:16px;' +
+        'background:#0A0E1A;' +
+        'border:1px solid #1E2748;border-radius:10px;' +
+      '}' +
+      '#__mb-amount-label{' +
+        'font-size:13px;font-weight:500;color:#8B95B0;' +
+      '}' +
+      '#__mb-amount-value{' +
+        'font-family:"JetBrains Mono",monospace;' +
+        'font-size:16px;font-weight:700;' +
+        'color:#00C853;' +
+      '}' +
+      '#__mb-field{' +
+        'margin-bottom:16px;' +
+      '}' +
+      '#__mb-field label{' +
+        'display:block;' +
+        'font-size:12px;font-weight:500;' +
+        'color:#8B95B0;margin-bottom:6px;' +
+        'letter-spacing:0.02em;' +
+      '}' +
+      '#__mb-ref-input{' +
+        'display:block;width:100%;padding:10px 14px;' +
+        'background:#0A0E1A;' +
+        'border:1px solid #1E2748;border-radius:10px;' +
+        'color:#E8EDF5;font-family:"JetBrains Mono",monospace;' +
+        'font-size:14px;outline:none;box-sizing:border-box;' +
+        'transition:border-color 0.15s ease;' +
+      '}' +
+      '#__mb-ref-input:focus{' +
+        'border-color:#D4A843;' +
+        'box-shadow:0 0 0 3px rgba(212,168,67,0.12);' +
+      '}' +
+      '#__mb-ref-input::placeholder{' +
+        'color:#5A6480;' +
+      '}' +
+      '#__mb-ref-input.__mb-error{' +
+        'border-color:#EF5350;' +
+        'box-shadow:0 0 0 3px rgba(239,83,80,0.12);' +
+      '}' +
+      '#__mb-ref-input:disabled{' +
+        'opacity:0.5;cursor:not-allowed;' +
+      '}' +
+      '#__mb-error-text{' +
+        'font-size:11px;color:#EF5350;margin-top:4px;' +
+        'display:none;' +
+      '}' +
+      '#__mb-btn{' +
+        'display:flex;align-items:center;justify-content:center;gap:8px;' +
+        'width:100%;height:48px;padding:0 24px;' +
+        'background:#D4A843;color:#0A0E1A;border:none;border-radius:20px;' +
+        'font-family:Inter,system-ui,sans-serif;' +
+        'font-size:14px;font-weight:600;' +
+        'letter-spacing:0.01em;' +
+        'cursor:pointer;' +
+        'transition:all 0.15s ease;' +
+        'box-sizing:border-box;' +
+      '}' +
+      '#__mb-btn:hover:not(:disabled){' +
+        'background:#EBC875;' +
+      '}' +
+      '#__mb-btn:active:not(:disabled){' +
+        'transform:scale(0.97);' +
+      '}' +
+      '#__mb-btn:disabled{' +
+        'opacity:0.5;cursor:not-allowed;' +
+      '}' +
+      '#__mb-btn .__mb-spinner{' +
+        'width:16px;height:16px;' +
+        'border:2px solid rgba(10,14,26,0.25);' +
+        'border-top-color:#0A0E1A;' +
+        'border-radius:50%;' +
+        'animation:__mb_spin 0.6s linear infinite;' +
+        'flex-shrink:0;' +
+      '}' +
+      '#__mb-result{' +
+        'margin-top:16px;min-height:0;' +
+      '}' +
+      '.__mb-result-card{' +
+        'padding:20px;border-radius:12px;' +
+        'text-align:center;' +
+        'animation:__mb_fadeIn 0.2s cubic-bezier(0.19,1,0.22,1) both;' +
+      '}' +
+      '.__mb-result-success{' +
+        'background:rgba(0,200,83,0.08);' +
+        'border:1px solid rgba(0,200,83,0.25);' +
+      '}' +
+      '.__mb-result-error{' +
+        'background:rgba(239,83,80,0.08);' +
+        'border:1px solid rgba(239,83,80,0.25);' +
+      '}' +
+      '.__mb-result-warn{' +
+        'background:rgba(240,180,41,0.08);' +
+        'border:1px solid rgba(240,180,41,0.25);' +
+      '}' +
+      '.__mb-result-icon{' +
+        'width:40px;height:40px;border-radius:50%;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'margin:0 auto 12px;' +
+        'font-size:18px;font-weight:700;' +
+      '}' +
+      '.__mb-result-success .__mb-result-icon{' +
+        'background:rgba(0,200,83,0.15);color:#00C853;' +
+      '}' +
+      '.__mb-result-error .__mb-result-icon{' +
+        'background:rgba(239,83,80,0.15);color:#EF5350;' +
+      '}' +
+      '.__mb-result-warn .__mb-result-icon{' +
+        'background:rgba(240,180,41,0.15);color:#F0B429;' +
+      '}' +
+      '.__mb-result-title{' +
+        'font-family:"Space Grotesk",system-ui,sans-serif;' +
+        'font-size:15px;font-weight:700;margin-bottom:2px;' +
+      '}' +
+      '.__mb-result-success .__mb-result-title{color:#00C853;}' +
+      '.__mb-result-error .__mb-result-title{color:#EF5350;}' +
+      '.__mb-result-warn .__mb-result-title{color:#F0B429;}' +
+      '.__mb-result-sender{' +
+        'font-size:13px;color:#8B95B0;margin:2px 0 6px;' +
+      '}' +
+      '.__mb-result-amount{' +
+        'font-family:"JetBrains Mono",monospace;' +
+        'font-size:20px;font-weight:700;' +
+        'color:#E8EDF5;margin:6px 0;' +
+      '}' +
+      '.__mb-result-ref{' +
+        'display:inline-block;' +
+        'font-family:"JetBrains Mono",monospace;' +
+        'font-size:11px;color:#5A6480;' +
+        'background:#0A0E1A;padding:4px 10px;border-radius:6px;' +
+        'margin-top:4px;' +
+      '}' +
+      '.__mb-result-message{' +
+        'font-size:13px;color:#8B95B0;margin-top:8px;line-height:1.5;' +
+      '}' +
+      '.__mb-result-retry{' +
+        'margin-top:14px;padding:8px 24px;' +
+        'background:transparent;color:#D4A843;' +
+        'border:1px solid #D4A843;border-radius:20px;' +
+        'font-family:Inter,system-ui,sans-serif;' +
+        'font-size:12px;font-weight:600;cursor:pointer;' +
+        'transition:all 0.15s ease;' +
+      '}' +
+      '.__mb-result-retry:hover{' +
+        'background:rgba(212,168,67,0.1);' +
+      '}' +
+      '#__mb-hint{' +
+        'margin-top:12px;padding:10px 14px;border-radius:8px;' +
+        'font-size:12px;line-height:1.5;color:#5A6480;' +
+        'background:rgba(212,168,67,0.06);' +
+        'border:1px solid rgba(212,168,67,0.08);' +
+      '}' +
+      '#__mb-inline-container .__mb-widget-wrapper{' +
+        'margin:0;' +
+      '}' +
+      '@media(prefers-reduced-motion:reduce){' +
+        '#__mb-modal{animation:none}' +
+        '.__mb-result-card{animation:none}' +
+        '#__mb-btn .__mb-spinner{animation:none}' +
+      '}'
+    );
+
     var style = document.createElement('style');
     style.id = STYLES_ID;
     style.textContent = css;
@@ -223,7 +313,7 @@
         {
           type: 'momo_result',
           confirmed: data.confirmed,
-          reference: data.reference || txn.reference || '',
+          reference: txn.reference || data.reference || '',
           amount: data.amount,
           senderName: txn.senderName || null,
           transaction: txn,
@@ -233,12 +323,63 @@
     } catch (e) {}
   }
 
+  function friendlyMessage(data) {
+    var m = (data.message || '').toLowerCase();
+    if (data.confirmed) return 'Payment verified by your phone.';
+    if (m.indexOf('already') !== -1) return 'This payment was already confirmed.';
+    if (m.indexOf('invalid') !== -1) return 'Reference not found in recent transactions.';
+    if (m.indexOf('amount') !== -1) return 'The amount doesn\u2019t match what was sent.';
+    if (m.indexOf('expired') !== -1) return 'This reference has expired.';
+    if (m.indexOf('offline') !== -1) return 'The store phone is currently offline.';
+    if (m.indexOf('network') !== -1) return 'Could not reach the verification server.';
+    return m || 'Verification failed.';
+  }
+
   // ─── Result Card Builder ─────────────────────────────────────────────────────
 
+  var ICONS = {
+    success: '\u2713',
+    error: '\u2717',
+    warn: '\u26A0',
+  };
+
+  function createEl(tag, attrs, children) {
+    var el = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        if (k === 'style' && typeof attrs[k] === 'object') {
+          Object.assign(el.style, attrs[k]);
+        } else if (k === 'className') {
+          el.className = attrs[k];
+        } else {
+          el.setAttribute(k, attrs[k]);
+        }
+      });
+    }
+    if (children) {
+      children.forEach(function (c) {
+        if (typeof c === 'string') {
+          el.appendChild(document.createTextNode(c));
+        } else if (c) {
+          el.appendChild(c);
+        }
+      });
+    }
+    return el;
+  }
+
+  function isElement(el) {
+    return typeof el === 'object' && el !== null && el.nodeType === 1;
+  }
+
+  function queryEl(selector) {
+    if (isElement(selector)) return selector;
+    if (typeof selector === 'string') return document.querySelector(selector);
+    return null;
+  }
+
   function buildResultCard(type, opts) {
-    // type: 'success' | 'error' | 'warn'
-    var iconMap = { success: '\u2713', error: '\u2717', warn: '\u26A0' };
-    var icon = iconMap[type] || '';
+    var icon = ICONS[type] || '';
     var card = createEl('div', { className: '__mb-result-card __mb-result-' + type });
 
     var iconEl = createEl('div', { className: '__mb-result-icon' }, [icon]);
@@ -246,6 +387,9 @@
 
     if (opts.title) {
       card.appendChild(createEl('div', { className: '__mb-result-title' }, [opts.title]));
+    }
+    if (opts.senderName) {
+      card.appendChild(createEl('div', { className: '__mb-result-sender' }, [opts.senderName]));
     }
     if (opts.amount != null) {
       var sym = opts.currencySymbol || DEFAULT_CURRENCY;
@@ -271,59 +415,46 @@
     return card;
   }
 
-  // ─── Shared UI Builder ───────────────────────────────────────────────────────
+  // ─── Widget UI Builder ───────────────────────────────────────────────────────
 
   function buildWidget(options, container) {
     var relayUrl = options.relayUrl;
     var apiKey = options.apiKey;
     var amount = options.amount;
-    var prefilledRef = options.reference || '';
     var currencySymbol = options.currencySymbol || DEFAULT_CURRENCY;
     var onSuccess = options.onSuccess || function () {};
     var onFailure = options.onFailure || function () {};
 
-    var refInput, amountDisplay, btn, resultEl, hintEl, loadingEl, verifyFn;
+    var refInput, resultEl, hintEl, errorTextEl, btn, btnTextSpan;
 
     function showResult(type, opts) {
-      clearLoading();
+      btn.disabled = false;
+      btn.innerHTML = '';
+      btn.appendChild(btnTextSpan);
       resultEl.innerHTML = '';
       opts = opts || {};
       opts.currencySymbol = currencySymbol;
       resultEl.appendChild(buildResultCard(type, opts));
     }
 
-    function clearLoading() {
-      if (loadingEl && loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
-      btn.disabled = false;
-      btn.textContent = 'Verify Payment';
-    }
-
     function setLoading() {
-      if (!loadingEl)
-        loadingEl = createEl('div', { className: '__mb-loading' }, [
-          createEl('div', { className: '__mb-spinner' }),
-          document.createTextNode('Verifying with your phone\u2026'),
-        ]);
-      resultEl.innerHTML = '';
-      container.appendChild(loadingEl);
       btn.disabled = true;
-      btn.textContent = 'Verifying\u2026';
+      btn.innerHTML = '<span class="__mb-spinner"></span> Verifying\u2026';
+      resultEl.innerHTML = '';
     }
 
     function handleVerify() {
       var ref = refInput.value.trim();
       if (!ref) {
-        refInput.className = '__mb-error-input';
-        showResult('error', {
-          title: 'Reference Required',
-          message: 'Please enter the transaction reference from your SMS.',
-          retry: function () { refInput.focus(); resultEl.innerHTML = ''; },
-        });
+        refInput.className = '__mb-error';
+        errorTextEl.style.display = 'block';
         refInput.focus();
         return;
       }
       refInput.className = '';
+      errorTextEl.style.display = 'none';
       setLoading();
+
       verify(
         relayUrl,
         apiKey,
@@ -332,12 +463,10 @@
         function (data) {
           var txn = data.transaction || {};
           var senderName = txn.senderName || null;
-          var msg = 'Your payment has been verified successfully.';
-          if (senderName) {
-            msg += ' (from ' + senderName + ')';
-          }
+          var msg = 'Payment confirmed by the store phone.';
           showResult('success', {
             title: 'Payment Confirmed',
+            senderName: senderName ? 'from ' + senderName : null,
             amount: amount ? amount.toFixed(2) : null,
             reference: ref,
             message: msg,
@@ -347,10 +476,10 @@
         },
         function (data) {
           var msg = friendlyMessage(data);
-          var msgLower = msg.toLowerCase();
+          var lower = msg.toLowerCase();
           var type = 'error';
           var title = 'Verification Failed';
-          if (msgLower.indexOf('already') !== -1) {
+          if (lower.indexOf('already') !== -1) {
             type = 'warn';
             title = 'Already Confirmed';
           }
@@ -367,70 +496,84 @@
       );
     }
 
-    verifyFn = handleVerify;
+    // ─── Build DOM ─────────────────────────────────────────────────────────────
 
-    // Build UI
+    // Amount row
+    var amountRow = createEl('div', { id: '__mb-amount-row' }, [
+      createEl('span', { id: '__mb-amount-label' }, ['Amount to verify']),
+      createEl('span', { id: '__mb-amount-value' }, [
+        currencySymbol + ' ' + (amount ? amount.toFixed(2) : '0.00'),
+      ]),
+    ]);
+    container.appendChild(amountRow);
+
+    // Reference field
+    var field = createEl('div', { id: '__mb-field' });
+    var label = createEl('label', {}, ['Transaction Reference']);
     refInput = createEl('input', {
+      id: '__mb-ref-input',
       type: 'text',
       placeholder: 'e.g. 0000013331054115',
-      value: prefilledRef,
+      value: options.reference || '',
     });
     refInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') handleVerify();
     });
     refInput.addEventListener('input', function () {
       refInput.className = '';
+      errorTextEl.style.display = 'none';
     });
 
-    amountDisplay = createEl('div', { id: '__mb-amount-display' }, [
-      document.createTextNode('Amount to verify'),
-      createEl('span', {}, [currencySymbol + ' ' + (amount ? amount.toFixed(2) : '0.00')]),
-    ]);
+    errorTextEl = createEl('div', { id: '__mb-error-text' }, ['Please enter the transaction reference.']);
 
-    btn = createEl('button', { id: '__mb-btn' }, ['Verify Payment']);
+    field.appendChild(label);
+    field.appendChild(refInput);
+    field.appendChild(errorTextEl);
+    container.appendChild(field);
+
+    // Verify button
+    btn = createEl('button', { id: '__mb-btn' });
+    btnTextSpan = document.createTextNode('Verify Payment');
+    btn.appendChild(btnTextSpan);
     btn.addEventListener('click', handleVerify);
+    container.appendChild(btn);
 
+    // Result area
     resultEl = createEl('div', { id: '__mb-result' });
+    container.appendChild(resultEl);
 
-    hintEl = createEl('div', { className: '__mb-hint' }, [
+    // Hint
+    hintEl = createEl('div', { id: '__mb-hint' }, [
       document.createTextNode(
-        'Send the exact amount via MoMo to the store number, then enter the reference from the SMS above.'
+        'Send the exact amount via MoMo to the store phone, then enter the SMS reference above.'
       ),
     ]);
-
-    container.appendChild(refInput);
-    container.appendChild(amountDisplay);
-    container.appendChild(btn);
-    container.appendChild(resultEl);
     container.appendChild(hintEl);
   }
 
   // ─── Popup Mode ─────────────────────────────────────────────────────────────
 
   function popup(options) {
-    injectStyles();
     if (!options || !options.relayUrl || !options.apiKey) {
       console.error('[MoMoBridge] relayUrl and apiKey are required');
       return;
     }
 
-    // Overlay
+    injectStyles();
+    loadFonts();
+
     var overlay = createEl('div', { id: '__mb-overlay' });
     var modal = createEl('div', { id: '__mb-modal' });
 
     // Header
     var closeBtn = createEl('button', { id: '__mb-close' }, ['\u00D7']);
     var header = createEl('div', { id: '__mb-header' }, [
-      createEl('h3', {}, [options.title || 'MoMo Bridge']),
+      createEl('span', { id: '__mb-wordmark' }, [options.title || 'MoMo Bridge']),
       closeBtn,
     ]);
 
     // Body
     var body = createEl('div', { id: '__mb-body' });
-    var label = createEl('label', {}, ['Transaction Reference']);
-
-    // Build widget inside body
-    body.appendChild(label);
     buildWidget(options, body);
 
     modal.appendChild(header);
@@ -455,7 +598,6 @@
   // ─── Inline Mode ────────────────────────────────────────────────────────────
 
   function inline(options) {
-    injectStyles();
     if (!options || !options.relayUrl || !options.apiKey) {
       console.error('[MoMoBridge] relayUrl and apiKey are required');
       return;
@@ -466,12 +608,14 @@
       return;
     }
 
-    var wrapper = createEl('div', { className: '__mb-widget-wrapper', style: { maxWidth: '400px', margin: '0 auto' } });
+    injectStyles();
+    loadFonts();
+
+    var wrapper = createEl('div', {
+      className: '__mb-widget-wrapper',
+      style: { maxWidth: '400px', margin: '0 auto' },
+    });
     container.appendChild(wrapper);
-
-    var label = createEl('label', {}, ['Transaction Reference']);
-    wrapper.appendChild(label);
-
     buildWidget(options, wrapper);
   }
 
