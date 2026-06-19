@@ -43,12 +43,11 @@ class SmsListenerService : Service() {
             val timestamp = intent.getLongExtra("timestamp", System.currentTimeMillis())
 
             val rule = smsSourceRepository.findRule(sender)
-            if (rule == null) {
-                stopSelf()
-                return START_STICKY
+            val parsed = if (rule != null) {
+                SmsParser.parse(body, rule, timestamp, sender)
+            } else {
+                SmsParser.parseHeuristic(body, timestamp, sender)
             }
-
-            val parsed = SmsParser.parse(body, rule, timestamp, sender)
             if (parsed == null) {
                 stopSelf()
                 return START_STICKY

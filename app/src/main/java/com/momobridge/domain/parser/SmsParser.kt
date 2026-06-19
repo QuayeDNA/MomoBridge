@@ -43,6 +43,7 @@ object SmsParser {
             rule.senderNamePattern
                 ?.let { Regex(it, RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1) }
                 ?.trim()
+                ?: FieldExtractor.extract(body).senderName
         }
 
         val phone = if (rule.senderPhonePattern == "USE_HEURISTIC") {
