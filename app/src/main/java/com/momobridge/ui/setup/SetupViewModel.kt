@@ -203,6 +203,17 @@ class SetupViewModel @Inject constructor(
 
     // ── Sender Configuration ────────────────────────────────────────────
 
+    fun enterSendersStep() {
+        val current = _uiState.value
+        if (current.step != 3) return
+        if (current.scannedSenders.isEmpty() && !current.scanningInbox) {
+            _uiState.value = current.copy(
+                existingSources = smsSourceRepository.getSources()
+            )
+            scanInbox()
+        }
+    }
+
     fun toggleSender(address: String) {
         val current = _uiState.value.selectedSenders.toMutableSet()
         if (current.contains(address)) current.remove(address) else current.add(address)

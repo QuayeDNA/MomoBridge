@@ -75,7 +75,7 @@ fun TransactionsScreen(
                 Text("Transaction Log", style = MomoTypography.TitleLarge, fontWeight = FontWeight.Bold)
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MomoColors.GroundMedium
+                containerColor = MomoColors.GroundDark
             )
         )
 

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,7 +47,7 @@ fun GoldButton(
             CircularProgressIndicator(
                 color = MomoColors.OnGold,
                 strokeWidth = 2.dp,
-                modifier = Modifier.padding(end = 8.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
         Text(

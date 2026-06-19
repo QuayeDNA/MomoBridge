@@ -289,3 +289,43 @@ bun run index.ts
 - Test expiry: set `expiresAt` to past in Room DB → claim returns "expired"
 - Test double-claim: first claim succeeds, second returns "already_confirmed"
 - Test multi-key: create two keys (Main Shop, Online Store) → claim with first key → transaction shows `via Main Shop`
+
+---
+
+## Session Summary — 2026-06-19
+
+### Settings Redesign — Category Menu with Sub-Screens
+
+Rewrote `SettingsScreen.kt` from a flat 632-line scrolling list with mixed concerns to a clean **category menu** with 4 dedicated sub-screens:
+
+- **Category menu row layout** — "Senders & Parsing", "Connection", "Transaction Rules", "About". Each row shows title + summary subtitle + gold chevron, separated by thin dividers.
+- **Senders & Parsing sub-screen** — sender list with SmsSourceCard (toggle/configure/delete), Scan Inbox button + dialog, Add Manually button + dialog. Empty state text when no senders.
+- **Connection sub-screen** — status dot + label, relay URL (tappable → edit dialog), API key with copy button, reconnect button.
+- **Transaction Rules sub-screen** — expiry toggle switch + hour text field (with day/hour helper text), "Scan Inbox for Past Transactions" gold button with result text.
+- **About sub-screen** — MoMo Bridge title + version, "Help & Support" outline button, "Reset All Settings" danger button with confirmation dialog.
+- Sub-screen navigation via `SettingsCategory` enum state — no new navigation routes needed. Back button ("← Settings" with arrow icon + gold text) returns to menu. Temporary state (scan results, historical result) cleared on back.
+- `SubScreenHeader` composable shared across all 4 sub-screens (back row + title).
+- Kept existing `SettingsViewModel` unchanged — it already provides all state and methods for all sub-screens.
+
+### Bottom NavBar Redesign
+
+`BottomNavBar.kt` — gold active indicator line (20×3dp pill above icon), uppercase monospace labels, 1.05x spring scale animation on active icon, zero tonal elevation. Keys badge preserved.
+
+### Header Consistency Across All Screens
+
+Changed `containerColor` from `MomoColors.GroundMedium` to `MomoColors.GroundDark` on all TopAppBars:
+
+| File | Change |
+|------|--------|
+| `DashboardScreen.kt:111` | GroundMedium → GroundDark |
+| `TransactionsScreen.kt:77` | GroundMedium → GroundDark |
+| `ApiKeysScreen.kt:285` | GroundMedium → GroundDark |
+| `HelpScreen.kt:98` | GroundMedium → GroundDark |
+| `SetupScreen.kt:110` | GroundMedium → GroundDark |
+| `SenderConfigScreen.kt:69` | GroundMedium → GroundDark |
+
+Headers now blend into the page background — only gold text and status dots are visible, consistent with Settings.
+
+### Build Verification
+- Build: SUCCESSFUL
+- ADB install: Success

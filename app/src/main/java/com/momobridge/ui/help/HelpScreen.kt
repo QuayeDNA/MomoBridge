@@ -96,7 +96,7 @@ fun HelpScreen(
             TopAppBar(
                 title = { Text("Help & Support") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MomoColors.GroundMedium
+                    containerColor = MomoColors.GroundDark
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {

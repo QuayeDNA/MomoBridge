@@ -67,7 +67,7 @@ fun SenderConfigScreen(
             TopAppBar(
                 title = { Text("Configure ${state.label}", style = MomoTypography.TitleLarge) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MomoColors.GroundMedium
+                    containerColor = MomoColors.GroundDark
                 ),
                 navigationIcon = {
                     Text(

@@ -218,8 +218,16 @@
 
   function notifyParent(data) {
     try {
+      var txn = data.transaction || {};
       window.parent.postMessage(
-        { type: 'momo_result', confirmed: data.confirmed, reference: data.reference, amount: data.amount },
+        {
+          type: 'momo_result',
+          confirmed: data.confirmed,
+          reference: data.reference || txn.reference || '',
+          amount: data.amount,
+          senderName: txn.senderName || null,
+          transaction: txn,
+        },
         '*'
       );
     } catch (e) {}
@@ -322,11 +330,17 @@
         ref,
         amount,
         function (data) {
+          var txn = data.transaction || {};
+          var senderName = txn.senderName || null;
+          var msg = 'Your payment has been verified successfully.';
+          if (senderName) {
+            msg += ' (from ' + senderName + ')';
+          }
           showResult('success', {
             title: 'Payment Confirmed',
             amount: amount ? amount.toFixed(2) : null,
             reference: ref,
-            message: 'Your payment has been verified successfully.',
+            message: msg,
           });
           notifyParent(data);
           onSuccess(data);

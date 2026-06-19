@@ -17,18 +17,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,8 +35,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,33 +53,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.momobridge.service.RelayConnectionStatus
 import com.momobridge.service.RelayState
 import com.momobridge.ui.components.DangerButton
-import com.momobridge.ui.components.SectionHeader
-import com.momobridge.ui.components.SectionSubtext
+import com.momobridge.ui.components.GoldButton
+import com.momobridge.ui.components.GoldOutlineButton
 import com.momobridge.ui.components.SmsSourceCard
 import com.momobridge.ui.theme.MomoColors
+import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
 import com.momobridge.ui.theme.MomoTypography
 
-/**
- * Settings screen — flat layout.
- *
- * Structural rules that keep this screen from breaking again:
- *  1. Every section is a plain Column on the screen background. No section
- *     is wrapped in a Card, and no single composable is dropped into a bare
- *     Box. A Box with no contentAlignment and mismatched child sizing was
- *     the root cause of components rendering on top of each other in the
- *     previous version.
- *  2. Rows that mix a flexible Text with a fixed-size icon always put
- *     `Modifier.weight(1f)` on the Text *before* adding the icon, so the
- *     icon's width is reserved first and the text wraps/ellipsizes inside
- *     whatever is left — not the other way around.
- *  3. Each section is separated by a HorizontalDivider, not nested
- *     elevation. There is exactly one visual "layer" on this screen:
- *     the scaffold background. Inputs and inline cards (like the relay
- *     status row) are the only things that get a surface tint, and they
- *     never contain another Card.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+private enum class SettingsCategory { SENDERS, CONNECTION, RULES, ABOUT }
+
 @Composable
 fun SettingsScreen(
     onNavigateToHelp: () -> Unit,
@@ -92,369 +72,621 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val relayState by viewModel.connectionState.collectAsStateWithLifecycle()
-
-    var showReconfigureDialog by remember { mutableStateOf(false) }
-    var showRelayUrlDialog by remember { mutableStateOf(false) }
-
-    if (showReconfigureDialog) {
-        ResetConfirmDialog(
-            onConfirm = {
-                viewModel.reconfigure()
-                showReconfigureDialog = false
-                onReconfigure()
-            },
-            onDismiss = { showReconfigureDialog = false }
-        )
-    }
-
-    if (showRelayUrlDialog) {
-        RelayUrlEditDialog(
-            currentUrl = viewModel.relayUrl,
-            onSave = { newUrl ->
-                viewModel.updateRelayUrl(newUrl)
-                showRelayUrlDialog = false
-            },
-            onDismiss = { showRelayUrlDialog = false }
-        )
-    }
-
-    if (state.showScanResults) {
-        ScanResultDialog(
-            senders = state.scannedSenders,
-            loading = state.scanningInbox,
-            onAdd = { address -> viewModel.addSourceFromScan(address) },
-            onDismiss = viewModel::hideScanResults
-        )
-    }
+    var category by remember { mutableStateOf<SettingsCategory?>(null) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MomoColors.GroundDark)
     ) {
-        TopAppBar(
-            title = { Text("Settings", style = MomoTypography.TitleLarge, fontWeight = FontWeight.Bold) },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MomoColors.GroundDark),
-            actions = {
-                TextButton(onClick = onNavigateToHelp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.Help, contentDescription = null, tint = MomoColors.Gold)
-                        Spacer(Modifier.width(MomoSpacing.Xs))
-                        Text("Help", color = MomoColors.Gold, style = MomoTypography.LabelSmall)
-                    }
-                }
-            }
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = MomoSpacing.Lg)
-        ) {
-            Spacer(Modifier.height(MomoSpacing.Sm))
-
-            SettingsSection(title = "Connection") {
-                RelayStatusRow(
-                    relayState = relayState,
-                    onReconnect = viewModel::reconnect,
-                    onEditUrl = { showRelayUrlDialog = true }
-                )
-            }
-
-            SettingsLabeledDivider(label = "Connection")
-
-            SettingsSection(title = "Transaction Expiry") {
-                SectionSubtext(text = "Set how long a transaction remains valid. Disable for unlimited validity.")
-                Spacer(Modifier.height(MomoSpacing.Md))
-                ExpiryConfigRow(
-                    expiryEnabled = state.expiryEnabled,
-                    expiryHours = state.expiryHours,
-                    onToggle = viewModel::setExpiryEnabled,
-                    onHoursChange = viewModel::setExpiryHours
-                )
-            }
-
-            SettingsLabeledDivider(label = "Transaction Expiry")
-
-            SettingsSection(title = "Monitored Senders") {
-                SectionSubtext(text = "Add SMS senders (e.g. MobileMoney, T-CASH) and configure how to parse their messages.")
-                Spacer(Modifier.height(MomoSpacing.Md))
-
-                if (state.smsSources.isEmpty()) {
-                    EmptySendersNotice()
-                    Spacer(Modifier.height(MomoSpacing.Md))
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)) {
-                        state.smsSources.forEach { source ->
-                            SmsSourceCard(
-                                source = source,
-                                onToggle = { viewModel.toggleSource(source.id, it) },
-                                onConfigure = { onNavigateToSenderConfig(source.senderAddress, source.label) },
-                                onDelete = { viewModel.removeSource(source.id) }
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(MomoSpacing.Md))
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
-                ) {
-                    OutlinedButton(
-                        onClick = viewModel::scanInbox,
-                        modifier = Modifier.weight(1f),
-                        enabled = !state.scanningInbox
-                    ) {
-                        if (state.scanningInbox) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MomoColors.Gold
-                            )
-                        } else {
-                            Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(Modifier.width(MomoSpacing.Sm))
-                        Text("Scan Inbox", style = MomoTypography.LabelSmall)
-                    }
-                    AddSenderButton(
-                        modifier = Modifier.weight(1f),
-                        onAdd = { addr, label -> viewModel.addSourceManually(addr, label) }
-                    )
-                }
-            }
-
-            SettingsLabeledDivider(label = "Monitored Senders")
-
-            SettingsSection(title = "Past Transactions") {
-                SectionSubtext(text = "Scan your inbox for past money received messages from monitored senders (up to 2 months back).")
-                Spacer(Modifier.height(MomoSpacing.Md))
-
-                Button(
-                    onClick = viewModel::scanHistoricalTransactions,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.scanningHistorical,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MomoColors.Gold,
-                        contentColor = MomoColors.OnGold
-                    )
-                ) {
-                    if (state.scanningHistorical) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MomoColors.OnGold
-                        )
-                        Spacer(Modifier.width(MomoSpacing.Sm))
-                        Text("Scanning…")
-                    } else {
-                        Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(MomoSpacing.Sm))
-                        Text("Scan Inbox for Past Transactions")
-                    }
-                }
-
-                if (state.historicalScanResult != null) {
-                    Spacer(Modifier.height(MomoSpacing.Sm))
-                    Text(
-                        text = state.historicalScanResult!!,
-                        style = MomoTypography.BodySmall,
-                        color = MomoColors.TextSecondary
-                    )
-                }
-            }
-
-            SettingsLabeledDivider(label = "Past Transactions")
-
-            Spacer(Modifier.height(MomoSpacing.Sm))
-            DangerButton(
-                text = "Reset All Settings",
-                onClick = { showReconfigureDialog = true }
+        when (category) {
+            null -> SettingsMenu(
+                state = state,
+                relayState = relayState,
+                onSelect = { category = it }
             )
-
-            Spacer(Modifier.height(MomoSpacing.Xxl))
+            SettingsCategory.SENDERS -> SendersSettingsContent(
+                state = state,
+                onBack = {
+                    viewModel.hideScanResults()
+                    category = null
+                },
+                onToggle = viewModel::toggleSource,
+                onConfigure = onNavigateToSenderConfig,
+                onDelete = viewModel::removeSource,
+                onAddManual = viewModel::addSourceManually,
+                onScan = viewModel::scanInbox,
+                onAddFromScan = viewModel::addSourceFromScan,
+                onHideScan = viewModel::hideScanResults
+            )
+            SettingsCategory.CONNECTION -> ConnectionSettingsContent(
+                relayState = relayState,
+                relayUrl = viewModel.relayUrl,
+                apiKey = viewModel.apiKey,
+                onBack = { category = null },
+                onUpdateUrl = viewModel::updateRelayUrl,
+                onReconnect = viewModel::reconnect
+            )
+            SettingsCategory.RULES -> RulesSettingsContent(
+                expiryEnabled = state.expiryEnabled,
+                expiryHours = state.expiryHours,
+                scanningHistorical = state.scanningHistorical,
+                historicalScanResult = state.historicalScanResult,
+                onBack = {
+                    viewModel.clearHistoricalScanResult()
+                    category = null
+                },
+                onToggleExpiry = viewModel::setExpiryEnabled,
+                onHoursChange = viewModel::setExpiryHours,
+                onScanHistorical = viewModel::scanHistoricalTransactions,
+                onClearResult = viewModel::clearHistoricalScanResult
+            )
+            SettingsCategory.ABOUT -> AboutSettingsContent(
+                onBack = { category = null },
+                onHelp = onNavigateToHelp,
+                onReset = onReconfigure
+            )
         }
     }
 }
 
-// ───────────────────────── Section scaffolding ─────────────────────────
+// ─────────────────────── Menu ───────────────────────
 
 @Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader(title = title)
-        Spacer(Modifier.height(MomoSpacing.Md))
-        content()
-    }
-}
-
-@Composable
-private fun SettingsLabeledDivider(label: String) {
-    Spacer(Modifier.height(MomoSpacing.Md))
-    HorizontalDivider(color = MomoColors.BorderSubtle, thickness = 1.dp)
-    Spacer(Modifier.height(MomoSpacing.Xs))
-    Text(
-        text = label,
-        style = MomoTypography.LabelSmall,
-        color = MomoColors.TextTertiary,
-        fontWeight = FontWeight.Medium
-    )
-    Spacer(Modifier.height(MomoSpacing.Md))
-}
-
-// ───────────────────────── Connection ─────────────────────────
-
-@Composable
-private fun RelayStatusRow(
+private fun SettingsMenu(
+    state: SettingsUiState,
     relayState: RelayState,
-    onReconnect: () -> Unit,
-    onEditUrl: () -> Unit
+    onSelect: (SettingsCategory) -> Unit
 ) {
-    val statusColor = when (relayState.status) {
-        RelayConnectionStatus.CONNECTED -> MomoColors.StatusConfirmed
-        RelayConnectionStatus.CONNECTING, RelayConnectionStatus.RECONNECTING -> MomoColors.StatusPending
-        RelayConnectionStatus.DISCONNECTED -> MomoColors.StatusFailed
-    }
-    val statusLabel = when (relayState.status) {
-        RelayConnectionStatus.CONNECTED -> "Connected"
-        RelayConnectionStatus.CONNECTING -> "Connecting…"
-        RelayConnectionStatus.RECONNECTING -> "Reconnecting…"
-        RelayConnectionStatus.DISCONNECTED -> "Disconnected"
-    }
+    val activeSenders = state.smsSources.count { it.enabled }
+    val totalSenders = state.smsSources.size
+    val sendersSummary = if (totalSenders == 0) "None configured"
+        else "$activeSenders of $totalSenders active"
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val connected = relayState.status == RelayConnectionStatus.CONNECTED
+    val connectionSummary = if (connected) "Connected to relay" else "Disconnected"
+
+    val expirySummary = if (state.expiryEnabled) "Expires after ${state.expiryHours}h"
+        else "Never expires"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = MomoSpacing.Lg)
+    ) {
+        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+        Text(
+            text = "Settings",
+            style = MomoTypography.TitleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MomoColors.Gold
+        )
+        Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+
+        SettingsCategoryRow(
+            title = "Senders & Parsing",
+            summary = sendersSummary,
+            onClick = { onSelect(SettingsCategory.SENDERS) }
+        )
+        SettingsDivider()
+
+        SettingsCategoryRow(
+            title = "Connection",
+            summary = connectionSummary,
+            onClick = { onSelect(SettingsCategory.CONNECTION) }
+        )
+        SettingsDivider()
+
+        SettingsCategoryRow(
+            title = "Transaction Rules",
+            summary = expirySummary,
+            onClick = { onSelect(SettingsCategory.RULES) }
+        )
+        SettingsDivider()
+
+        SettingsCategoryRow(
+            title = "About",
+            summary = "v1.0.0",
+            onClick = { onSelect(SettingsCategory.ABOUT) }
+        )
+    }
+}
+
+@Composable
+private fun SettingsCategoryRow(
+    title: String,
+    summary: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = MomoSpacing.Lg),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MomoTypography.TitleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MomoColors.TextPrimary
+            )
+            Text(
+                text = summary,
+                style = MomoTypography.LabelSmall,
+                color = MomoColors.TextTertiary
+            )
+        }
+        Spacer(modifier = Modifier.width(MomoSpacing.Sm))
+        Text(
+            text = "›",
+            style = MomoTypography.TitleMedium,
+            color = MomoColors.Gold
+        )
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(
+        color = MomoColors.BorderSubtle,
+        thickness = 1.dp
+    )
+}
+
+// ─────────────────── Sub-screen header ───────────────────
+
+@Composable
+private fun SubScreenHeader(title: String, onBack: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = MomoSpacing.Lg, vertical = MomoSpacing.Md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.clickable(onClick = onBack),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(statusColor)
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MomoColors.Gold,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(Modifier.width(MomoSpacing.Sm))
+            Spacer(modifier = Modifier.width(MomoSpacing.Xs))
             Text(
-                text = statusLabel,
-                style = MomoTypography.BodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = statusColor,
-                modifier = Modifier.weight(1f)
+                text = "Settings",
+                style = MomoTypography.LabelSmall,
+                color = MomoColors.Gold
             )
-            IconButton(onClick = onReconnect, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reconnect", tint = MomoColors.Gold)
-            }
+        }
+        Spacer(modifier = Modifier.width(MomoSpacing.Lg))
+        Text(
+            text = title,
+            style = MomoTypography.TitleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MomoColors.TextPrimary
+        )
+    }
+}
+
+// ─────────────────── Senders & Parsing ───────────────────
+
+@Composable
+private fun SendersSettingsContent(
+    state: SettingsUiState,
+    onBack: () -> Unit,
+    onToggle: (String, Boolean) -> Unit,
+    onConfigure: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onAddManual: (String, String) -> Unit,
+    onScan: () -> Unit,
+    onAddFromScan: (String) -> Unit,
+    onHideScan: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        SubScreenHeader(title = "Senders & Parsing", onBack = onBack)
+
+        if (state.showScanResults) {
+            ScanResultDialog(
+                senders = state.scannedSenders,
+                loading = state.scanningInbox,
+                onAdd = onAddFromScan,
+                onDismiss = onHideScan
+            )
         }
 
-        if (relayState.url != null) {
-            Spacer(Modifier.height(MomoSpacing.Sm))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onEditUrl() },
-                verticalAlignment = Alignment.CenterVertically
+        Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+
+        if (state.smsSources.isEmpty()) {
+            Text(
+                text = "No senders configured yet. Add a sender or scan your inbox to get started.",
+                style = MomoTypography.BodyMedium,
+                color = MomoColors.TextSecondary,
+                modifier = Modifier.padding(horizontal = MomoSpacing.Lg)
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = MomoSpacing.Lg),
+                verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
             ) {
-                Text(
-                    text = relayState.url,
-                    style = MomoTypography.BodySmall,
-                    color = MomoColors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(MomoSpacing.Sm))
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = "Edit relay URL",
-                    tint = MomoColors.Gold,
-                    modifier = Modifier.size(14.dp)
-                )
+                state.smsSources.forEach { source ->
+                    SmsSourceCard(
+                        source = source,
+                        onToggle = { onToggle(source.id, it) },
+                        onConfigure = { onConfigure(source.senderAddress, source.label) },
+                        onDelete = { onDelete(source.id) }
+                    )
+                }
             }
+            Spacer(modifier = Modifier.height(MomoSpacing.Md))
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = MomoSpacing.Lg),
+            horizontalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
+        ) {
+            OutlinedButton(
+                onClick = onScan,
+                modifier = Modifier.weight(1f),
+                enabled = !state.scanningInbox,
+                shape = MomoShapes.ButtonShape
+            ) {
+                if (state.scanningInbox) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MomoColors.Gold
+                    )
+                } else {
+                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                Spacer(modifier = Modifier.width(MomoSpacing.Sm))
+                Text("Scan Inbox", style = MomoTypography.LabelSmall)
+            }
+            AddSenderButton(
+                modifier = Modifier.weight(1f),
+                onAdd = onAddManual
+            )
         }
     }
 }
 
-// ───────────────────────── Transaction Expiry ─────────────────────────
+// ─────────────────── Connection ───────────────────
 
 @Composable
-private fun ExpiryConfigRow(
-    expiryEnabled: Boolean,
-    expiryHours: Long,
-    onToggle: (Boolean) -> Unit,
-    onHoursChange: (Long) -> Unit
+private fun ConnectionSettingsContent(
+    relayState: RelayState,
+    relayUrl: String,
+    apiKey: String,
+    onBack: () -> Unit,
+    onUpdateUrl: (String) -> Unit,
+    onReconnect: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+    var showUrlDialog by remember { mutableStateOf(false) }
+
+    if (showUrlDialog) {
+        RelayUrlEditDialog(
+            currentUrl = relayUrl,
+            onSave = { url ->
+                onUpdateUrl(url)
+                showUrlDialog = false
+            },
+            onDismiss = { showUrlDialog = false }
+        )
+    }
+
+    val clipboard = LocalClipboardManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        SubScreenHeader(title = "Connection", onBack = onBack)
+
+        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+
+        Column(modifier = Modifier.padding(horizontal = MomoSpacing.Lg)) {
+            // Status
+            val statusColor = when (relayState.status) {
+                RelayConnectionStatus.CONNECTED -> MomoColors.StatusConfirmed
+                RelayConnectionStatus.CONNECTING, RelayConnectionStatus.RECONNECTING -> MomoColors.StatusPending
+                RelayConnectionStatus.DISCONNECTED -> MomoColors.StatusFailed
+            }
+            val statusLabel = when (relayState.status) {
+                RelayConnectionStatus.CONNECTED -> "Connected"
+                RelayConnectionStatus.CONNECTING -> "Connecting…"
+                RelayConnectionStatus.RECONNECTING -> "Reconnecting…"
+                RelayConnectionStatus.DISCONNECTED -> "Disconnected"
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(statusColor)
+                )
+                Spacer(modifier = Modifier.width(MomoSpacing.Sm))
                 Text(
-                    text = "Enable Expiry",
+                    text = statusLabel,
                     style = MomoTypography.BodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = statusColor
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onReconnect) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Reconnect",
+                        tint = MomoColors.Gold
+                    )
+                }
+            }
+
+            // Relay URL
+            if (relayUrl.isNotBlank()) {
+                Spacer(modifier = Modifier.height(MomoSpacing.Md))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showUrlDialog = true },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = relayUrl,
+                        style = MomoTypography.BodySmall,
+                        color = MomoColors.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(MomoSpacing.Sm))
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit relay URL",
+                        tint = MomoColors.Gold,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            // API Key
+            if (apiKey.isNotBlank()) {
+                Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+                Text(
+                    text = "API Key",
+                    style = MomoTypography.TitleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MomoColors.TextPrimary
                 )
-                Text(
-                    text = if (expiryEnabled) "Transactions expire after ${expiryHours}h" else "Transactions never expire",
-                    style = MomoTypography.LabelSmall,
-                    color = MomoColors.TextSecondary
-                )
-            }
-            Spacer(Modifier.width(MomoSpacing.Sm))
-            Switch(
-                checked = expiryEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = MomoColors.Gold,
-                    checkedThumbColor = MomoColors.OnGold
-                )
-            )
-        }
-
-        if (expiryEnabled) {
-            Spacer(Modifier.height(MomoSpacing.Md))
-            var hoursText by remember(expiryHours) { mutableStateOf(expiryHours.toString()) }
-            OutlinedTextField(
-                value = hoursText,
-                onValueChange = { input ->
-                    hoursText = input
-                    input.toLongOrNull()?.let { hours ->
-                        if (hours in 1..8760) onHoursChange(hours)
-                    }
-                },
-                label = { Text("Expiry Period (hours)") },
-                placeholder = { Text("168") },
-                supportingText = {
-                    val days = expiryHours / 24
-                    val remainder = expiryHours % 24
+                Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MomoColors.GroundMedium, MomoShapes.CardShape)
+                        .padding(MomoSpacing.CardPadding),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        if (days > 0) "${days}d ${remainder}h" else "${expiryHours}h",
+                        text = apiKey,
+                        style = MomoTypography.BodySmall,
+                        color = MomoColors.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(MomoSpacing.Sm))
+                    IconButton(onClick = { clipboard.setText(AnnotatedString(apiKey)) }) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Copy API key",
+                            tint = MomoColors.Gold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────── Transaction Rules ───────────────────
+
+@Composable
+private fun RulesSettingsContent(
+    expiryEnabled: Boolean,
+    expiryHours: Long,
+    scanningHistorical: Boolean,
+    historicalScanResult: String?,
+    onBack: () -> Unit,
+    onToggleExpiry: (Boolean) -> Unit,
+    onHoursChange: (Long) -> Unit,
+    onScanHistorical: () -> Unit,
+    onClearResult: () -> Unit
+) {
+    var hoursText by remember(expiryHours) { mutableStateOf(expiryHours.toString()) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        SubScreenHeader(title = "Transaction Rules", onBack = onBack)
+
+        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+
+        Column(modifier = Modifier.padding(horizontal = MomoSpacing.Lg)) {
+            // Expiry toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Auto-expiry",
+                        style = MomoTypography.TitleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MomoColors.TextPrimary
+                    )
+                    Text(
+                        text = if (expiryEnabled) "Transactions expire after ${expiryHours}h"
+                        else "Transactions never expire",
+                        style = MomoTypography.LabelSmall,
                         color = MomoColors.TextSecondary
                     )
-                },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                }
+                Switch(
+                    checked = expiryEnabled,
+                    onCheckedChange = onToggleExpiry,
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = MomoColors.Gold,
+                        checkedThumbColor = MomoColors.OnGold
+                    )
+                )
+            }
+
+            if (expiryEnabled) {
+                Spacer(modifier = Modifier.height(MomoSpacing.Md))
+                OutlinedTextField(
+                    value = hoursText,
+                    onValueChange = { input ->
+                        hoursText = input
+                        input.toLongOrNull()?.let { hours ->
+                            if (hours in 1..8760) onHoursChange(hours)
+                        }
+                    },
+                    label = { Text("Expiry Period (hours)") },
+                    placeholder = { Text("168") },
+                    supportingText = {
+                        val days = expiryHours / 24
+                        val remainder = expiryHours % 24
+                        Text(
+                            if (days > 0) "${days}d ${remainder}h" else "${expiryHours}h",
+                            color = MomoColors.TextSecondary
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+
+            // Historical scan
+            Text(
+                text = "Past Transactions",
+                style = MomoTypography.TitleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MomoColors.TextPrimary
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+            Text(
+                text = "Scan your inbox for past money received messages from monitored senders (up to 2 months back).",
+                style = MomoTypography.BodySmall,
+                color = MomoColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Md))
+
+            GoldButton(
+                text = if (scanningHistorical) "Scanning…" else "Scan Inbox for Past Transactions",
+                onClick = onScanHistorical,
+                enabled = !scanningHistorical,
+                loading = scanningHistorical
+            )
+
+            if (historicalScanResult != null) {
+                Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+                Text(
+                    text = historicalScanResult,
+                    style = MomoTypography.BodySmall,
+                    color = MomoColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+                TextButton(onClick = onClearResult) {
+                    Text("Dismiss", color = MomoColors.Gold)
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────── About ───────────────────
+
+@Composable
+private fun AboutSettingsContent(
+    onBack: () -> Unit,
+    onHelp: () -> Unit,
+    onReset: () -> Unit
+) {
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    if (showResetDialog) {
+        ResetConfirmDialog(
+            onConfirm = {
+                showResetDialog = false
+                onReset()
+            },
+            onDismiss = { showResetDialog = false }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        SubScreenHeader(title = "About", onBack = onBack)
+
+        Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+
+        Column(modifier = Modifier.padding(horizontal = MomoSpacing.Lg)) {
+            Text(
+                text = "MoMo Bridge",
+                style = MomoTypography.TitleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MomoColors.Gold
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Xs))
+            Text(
+                text = "Version 1.0.0",
+                style = MomoTypography.BodyMedium,
+                color = MomoColors.TextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+
+            GoldOutlineButton(
+                text = "Help & Support",
+                onClick = onHelp,
+                fullWidth = true
+            )
+
+            Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+
+            HorizontalDivider(color = MomoColors.BorderSubtle, thickness = 1.dp)
+
+            Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+            DangerButton(
+                text = "Reset All Settings",
+                onClick = { showResetDialog = true },
+                fullWidth = true
             )
         }
     }
 }
 
-// ───────────────────────── Monitored Senders ─────────────────────────
-
-@Composable
-private fun EmptySendersNotice() {
-    Text(
-        text = "No senders configured yet. Tap \"Scan Inbox\" or \"Add Manually\" to get started.",
-        style = MomoTypography.BodySmall,
-        color = MomoColors.TextSecondary
-    )
-}
+// ─────────────────── Dialogs ───────────────────
 
 @Composable
 private fun AddSenderButton(modifier: Modifier = Modifier, onAdd: (String, String) -> Unit) {
@@ -462,7 +694,11 @@ private fun AddSenderButton(modifier: Modifier = Modifier, onAdd: (String, Strin
     var addr by remember { mutableStateOf("") }
     var label by remember { mutableStateOf("") }
 
-    OutlinedButton(onClick = { showDialog = true }, modifier = modifier) {
+    OutlinedButton(
+        onClick = { showDialog = true },
+        modifier = modifier,
+        shape = MomoShapes.ButtonShape
+    ) {
         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(MomoSpacing.Sm))
         Text("Add Manually", style = MomoTypography.LabelSmall)
@@ -519,7 +755,14 @@ private fun ScanResultDialog(
         title = { Text("SMS Senders Found") },
         text = {
             if (loading) {
-                CircularProgressIndicator(color = MomoColors.Gold)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MomoSpacing.Lg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MomoColors.Gold)
+                }
             } else if (senders.isEmpty()) {
                 Text(
                     "No SMS senders found in your inbox.",
@@ -569,8 +812,6 @@ private fun ScanResultDialog(
         }
     )
 }
-
-// ───────────────────────── Dialogs ─────────────────────────
 
 @Composable
 private fun RelayUrlEditDialog(
