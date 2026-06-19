@@ -91,6 +91,14 @@ class TransactionRepository @Inject constructor(
         dao.updateStatusByReference(reference, status)
     }
 
+    suspend fun getExpiredPending(): List<SmsTransactionEntity> {
+        return dao.getExpiredPending(System.currentTimeMillis())
+    }
+
+    suspend fun markExpired(): Int {
+        return dao.markExpired(System.currentTimeMillis())
+    }
+
     fun observeTransactions(): Flow<List<SmsTransactionEntity>> = dao.observeAll()
 
     fun observePendingCount(): Flow<Int> = dao.observeCountByStatus(SmsTransactionEntity.PENDING)

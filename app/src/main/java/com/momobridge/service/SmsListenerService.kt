@@ -9,6 +9,7 @@ import com.momobridge.MomoBridgeApp
 import com.momobridge.R
 import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.data.repository.SmsSourceRepository
+import com.momobridge.data.repository.TransactionRepository
 import com.momobridge.di.RegularPrefs
 import com.momobridge.domain.usecase.LlmFallbackUseCase
 import com.momobridge.domain.parser.SmsParser
@@ -18,6 +19,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,6 +29,8 @@ class SmsListenerService : Service() {
     @Inject lateinit var processSmsUseCase: ProcessSmsUseCase
     @Inject lateinit var smsSourceRepository: SmsSourceRepository
     @Inject lateinit var llmFallbackUseCase: LlmFallbackUseCase
+    @Inject lateinit var transactionRepository: TransactionRepository
+    @Inject lateinit var notificationHelper: NotificationHelper
     @Inject @RegularPrefs lateinit var regularPrefs: SharedPreferences
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -36,6 +40,7 @@ class SmsListenerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
+        startExpiryChecker()
 
         if (intent != null) {
             val sender = intent.getStringExtra("sender") ?: return START_STICKY
@@ -119,6 +124,23 @@ class SmsListenerService : Service() {
             )
         )
         .build()
+
+    private fun startExpiryChecker() {
+        scope.launch {
+            while (true) {
+                delay(60_000L)
+                try {
+                    val expired = transactionRepository.getExpiredPending()
+                    if (expired.isNotEmpty()) {
+                        expired.forEach { txn ->
+                            notificationHelper.notifyTransactionExpired(txn)
+                        }
+                        transactionRepository.markExpired()
+                    }
+                } catch (_: Exception) { }
+            }
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()

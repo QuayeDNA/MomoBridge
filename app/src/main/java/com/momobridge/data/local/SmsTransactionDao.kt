@@ -43,6 +43,12 @@ interface SmsTransactionDao {
     @Query("UPDATE sms_transactions SET status = :status, confirmedAt = :confirmedAt, claimedByKeyLabel = :keyLabel WHERE reference = :reference AND status = 'PENDING'")
     suspend fun confirmTransactionWithLabel(reference: String, status: String, confirmedAt: Long, keyLabel: String): Int
 
+    @Query("SELECT * FROM sms_transactions WHERE status = 'PENDING' AND expiresAt < :now")
+    suspend fun getExpiredPending(now: Long): List<SmsTransactionEntity>
+
+    @Query("UPDATE sms_transactions SET status = 'EXPIRED' WHERE status = 'PENDING' AND expiresAt < :now")
+    suspend fun markExpired(now: Long): Int
+
     @Query("DELETE FROM sms_transactions WHERE status = :status AND createdAt < :olderThan")
     suspend fun deleteOldRecords(status: String, olderThan: Long)
 

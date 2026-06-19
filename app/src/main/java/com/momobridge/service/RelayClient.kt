@@ -39,7 +39,8 @@ class RelayClient @Inject constructor(
     @SecurePrefs private val securePrefs: SharedPreferences,
     @RegularPrefs private val prefs: SharedPreferences,
     private val claimHandler: ClaimHandler,
-    private val apiKeyRepository: ApiKeyRepository
+    private val apiKeyRepository: ApiKeyRepository,
+    private val notificationHelper: NotificationHelper
 ) {
 
     companion object {
@@ -250,6 +251,18 @@ class RelayClient @Inject constructor(
             }
 
             val result = claimHandler.handleClaim(reference, amount, keyLabel)
+
+            if (result.confirmed) {
+                notificationHelper.notifyClaimConfirmed(result)
+            } else {
+                val msg = (result.message ?: "").lowercase()
+                if (msg.contains("already")) {
+                    notificationHelper.notifyClaimAlreadyConfirmed(result)
+                } else {
+                    notificationHelper.notifyClaimError(reference, amount)
+                }
+            }
+
             sendJson(mapOf(
                 "type" to "claim_response",
                 "claimId" to claimId,
