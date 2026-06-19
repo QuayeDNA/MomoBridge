@@ -7,7 +7,7 @@
 <meta name="description" content="MoMo Bridge turns an Android phone into a real-time Mobile Money verification authority. No backend, no wallet, no monthly fee — your phone reads the SMS and confirms the payment." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,200..900,50..100,0..1&display=swap" rel="stylesheet" />
 <style>
 /* ============================================================
    MOMO BRIDGE — DESIGN TOKENS
@@ -44,9 +44,7 @@
   --border-accent:#d4a843;
   --highlight:rgba(212,168,67,0.08);
 
-  /* Wordmark accent — darker blue tint for "Bridge", distinct
-     enough from the page's near-black ground to stay legible */
-  --wordmark-blue:#5b6fc4;
+
 
   /* Type */
   --font-display:'Space Grotesk', system-ui, sans-serif;
@@ -134,17 +132,14 @@ nav.scrolled{border-bottom-color:var(--border-subtle);}
   max-width:1080px; margin:0 auto;
 }
 .nav-logo{
-  display:flex; align-items:center; gap:8px;
-  font-family:var(--font-display); font-weight:700; font-size:16px;
-  color:var(--text-primary);
+  font-family:'Fraunces', Georgia, serif;
+  font-size:18px; font-weight:800;
+  letter-spacing:-0.02em;
+  font-variation-settings:'SOFT' 60,'WONK' 1;
+  color:var(--gold); text-decoration:none;
 }
-.nav-logo .dot{
-  width:8px;height:8px;border-radius:50%;
-  background:var(--status-confirmed);
-  box-shadow:0 0 0 3px rgba(0,200,83,0.15);
-}
-.wordmark .wm-momo{color:var(--gold);}
-.wordmark .wm-bridge{color:var(--wordmark-blue);}
+.nav-logo span{color:var(--text-primary);}
+.nav-logo:hover{opacity:0.9;}
 .nav-links{display:flex; align-items:center; gap:var(--sp-xl); list-style:none;}
 .nav-links a{
   font-size:13px; font-weight:500; color:var(--text-secondary);
@@ -302,7 +297,7 @@ nav.scrolled{border-bottom-color:var(--border-subtle);}
 
 <nav id="mainNav">
   <div class="nav-inner">
-    <div class="nav-logo"><span class="dot"></span> <span class="wordmark"><span class="wm-momo">Momo</span><span class="wm-bridge">Bridge</span></span></div>
+    <a href="#" class="nav-logo">MoMo<span>Bridge</span></a>
     <button class="nav-burger" id="burgerBtn" aria-label="Menu">☰</button>
     <ul class="nav-links" id="navLinks">
       <li><a href="#how">How it works</a></li>
@@ -952,7 +947,7 @@ footer{border-top:1px solid var(--border-subtle); padding:var(--sp-xxl) 0 var(--
   <div class="wrap">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="nav-logo"><span class="dot"></span> <span class="wordmark"><span class="wm-momo">Momo</span><span class="wm-bridge">Bridge</span></span></div>
+        <a href="#" class="nav-logo">MoMo<span>Bridge</span></a>
         <p>A local verification authority for Mobile Money, running on a phone you already own. No backend, no wallet system, no monthly fee.</p>
       </div>
       <div class="footer-col">
