@@ -77,8 +77,8 @@ class NotificationHelper @Inject constructor(
         manager.notify(id, notification)
     }
 
-    fun notifyClaimError(ref: String, amount: Double) {
-        val text = "GH\u20B5${"%.2f".format(amount)} — could not confirm"
+    fun notifyClaimError(ref: String) {
+        val text = "Ref: $ref — could not confirm"
 
         val notification = NotificationCompat.Builder(context, MomoBridgeApp.CHANNEL_ID_EVENTS)
             .setContentTitle("Verification Failed")

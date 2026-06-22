@@ -10,12 +10,13 @@
  *     MoMoBridge.popup({
  *       relayUrl: 'https://your-relay.com',
  *       apiKey: 'mb_...',
- *       amount: 18.00,
- *       currencySymbol: 'GH\u20B5',
  *       onSuccess: function(data) { console.log('Confirmed', data); },
  *       onFailure: function(data) { console.log('Failed', data); },
  *     });
  *   </script>
+ *
+ * The amount is returned by the relay in data.transaction.amount
+ * and displayed in the result card — no amount input needed.
  *
  * Modes: popup, inline, redirect
  */
@@ -110,20 +111,7 @@
       '#__mb-body{' +
         'padding:24px 20px 20px;' +
       '}' +
-      '#__mb-amount-row{' +
-        'display:flex;align-items:center;justify-content:space-between;' +
-        'padding:12px 14px;margin-bottom:16px;' +
-        'background:#0A0E1A;' +
-        'border:1px solid #1E2748;border-radius:10px;' +
-      '}' +
-      '#__mb-amount-label{' +
-        'font-size:13px;font-weight:500;color:#8B95B0;' +
-      '}' +
-      '#__mb-amount-value{' +
-        'font-family:"JetBrains Mono",monospace;' +
-        'font-size:16px;font-weight:700;' +
-        'color:#00C853;' +
-      '}' +
+
       '#__mb-field{' +
         'margin-bottom:16px;' +
       '}' +
@@ -282,7 +270,7 @@
 
   // ─── Core Verification ──────────────────────────────────────────────────────
 
-  function verify(relayUrl, apiKey, ref, amount, onSuccess, onFailure) {
+  function verify(relayUrl, apiKey, ref, onSuccess, onFailure) {
     var url = relayUrl.replace(/\/+$/, '') + '/claim';
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
@@ -303,7 +291,7 @@
     xhr.onerror = function () {
       if (onFailure) onFailure({ message: 'Network error \u2014 could not reach relay' });
     };
-    xhr.send(JSON.stringify({ apiKey: apiKey, reference: ref, amount: amount }));
+    xhr.send(JSON.stringify({ apiKey: apiKey, reference: ref }));
   }
 
   function notifyParent(data) {
@@ -314,7 +302,7 @@
           type: 'momo_result',
           confirmed: data.confirmed,
           reference: txn.reference || data.reference || '',
-          amount: data.amount,
+          amount: txn.amount,
           senderName: txn.senderName || null,
           transaction: txn,
         },
@@ -420,7 +408,6 @@
   function buildWidget(options, container) {
     var relayUrl = options.relayUrl;
     var apiKey = options.apiKey;
-    var amount = options.amount;
     var currencySymbol = options.currencySymbol || DEFAULT_CURRENCY;
     var onSuccess = options.onSuccess || function () {};
     var onFailure = options.onFailure || function () {};
@@ -459,15 +446,15 @@
         relayUrl,
         apiKey,
         ref,
-        amount,
         function (data) {
           var txn = data.transaction || {};
+          var actualAmount = txn.amount;
           var senderName = txn.senderName || null;
           var msg = 'Payment confirmed by the store phone.';
           showResult('success', {
             title: 'Payment Confirmed',
             senderName: senderName ? 'from ' + senderName : null,
-            amount: amount ? amount.toFixed(2) : null,
+            amount: actualAmount != null ? actualAmount.toFixed(2) : null,
             reference: ref,
             message: msg,
           });
@@ -485,8 +472,6 @@
           }
           showResult(type, {
             title: title,
-            amount: amount ? amount.toFixed(2) : null,
-            reference: ref,
             message: msg,
             retry: function () { resultEl.innerHTML = ''; },
           });
@@ -497,15 +482,6 @@
     }
 
     // ─── Build DOM ─────────────────────────────────────────────────────────────
-
-    // Amount row
-    var amountRow = createEl('div', { id: '__mb-amount-row' }, [
-      createEl('span', { id: '__mb-amount-label' }, ['Amount to verify']),
-      createEl('span', { id: '__mb-amount-value' }, [
-        currencySymbol + ' ' + (amount ? amount.toFixed(2) : '0.00'),
-      ]),
-    ]);
-    container.appendChild(amountRow);
 
     // Reference field
     var field = createEl('div', { id: '__mb-field' });
@@ -630,7 +606,6 @@
     var params =
       '?relayUrl=' + encodeURIComponent(options.relayUrl) +
       '&apiKey=' + encodeURIComponent(options.apiKey) +
-      '&amount=' + encodeURIComponent(options.amount || '') +
       '&currencySymbol=' + encodeURIComponent(options.currencySymbol || DEFAULT_CURRENCY);
     if (options.reference) params += '&reference=' + encodeURIComponent(options.reference);
     if (options.callbackUrl) params += '&callbackUrl=' + encodeURIComponent(options.callbackUrl);

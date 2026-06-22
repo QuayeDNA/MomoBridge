@@ -279,11 +279,11 @@ Bun.serve({
         });
       }
 
-      const { apiKey, reference, amount } = body;
-      if (!apiKey || !reference || amount === undefined || amount === null) {
+      const { apiKey, reference } = body;
+      if (!apiKey || !reference) {
         return new Response(JSON.stringify({
           confirmed: false,
-          message: "apiKey, reference, and amount are required",
+          message: "apiKey and reference are required",
         }), {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -318,7 +318,6 @@ Bun.serve({
           type: "claim_request",
           claimId,
           reference,
-          amount: parseFloat(amount),
           apiKey,
         });
       });

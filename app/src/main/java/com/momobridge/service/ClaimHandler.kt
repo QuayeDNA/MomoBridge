@@ -24,7 +24,7 @@ class ClaimHandler @Inject constructor(
         return txn.status == SmsTransactionEntity.EXPIRED || txn.expiresAt < System.currentTimeMillis()
     }
 
-    suspend fun handleClaim(reference: String, amount: Double, claimedByKeyLabel: String? = null): ClaimResult {
+    suspend fun handleClaim(reference: String, claimedByKeyLabel: String? = null): ClaimResult {
         if (reference.isBlank()) {
             return ClaimResult(false, "Reference is required")
         }
@@ -51,17 +51,6 @@ class ClaimHandler @Inject constructor(
             return ClaimResult(
                 confirmed = false,
                 message = "Transaction reference has expired",
-                reference = txn.reference,
-                amount = txn.amount,
-                network = txn.network,
-                senderName = txn.senderName
-            )
-        }
-
-        if (kotlin.math.abs(txn.amount - amount) > 0.01) {
-            return ClaimResult(
-                confirmed = false,
-                message = "Amount mismatch. Expected GH₵${"%.2f".format(txn.amount)}",
                 reference = txn.reference,
                 amount = txn.amount,
                 network = txn.network,

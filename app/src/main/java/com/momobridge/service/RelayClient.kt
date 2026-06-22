@@ -224,9 +224,8 @@ class RelayClient @Inject constructor(
                 "claim_request" -> {
                     val claimId = msg["claimId"] as? String ?: return
                     val reference = msg["reference"] as? String ?: return
-                    val amount = (msg["amount"] as? Number)?.toDouble() ?: return
                     val apiKey = msg["apiKey"] as? String
-                    handleClaimRequest(claimId, reference, amount, apiKey)
+                    handleClaimRequest(claimId, reference, apiKey)
                 }
                 "pong" -> { }
                 "error" -> {
@@ -238,7 +237,7 @@ class RelayClient @Inject constructor(
         }
     }
 
-    private fun handleClaimRequest(claimId: String, reference: String, amount: Double, apiKey: String?) {
+    private fun handleClaimRequest(claimId: String, reference: String, apiKey: String?) {
         scope.launch {
             // Look up the key label if apiKey was provided
             var keyLabel: String? = null
@@ -250,7 +249,7 @@ class RelayClient @Inject constructor(
                 }
             }
 
-            val result = claimHandler.handleClaim(reference, amount, keyLabel)
+            val result = claimHandler.handleClaim(reference, keyLabel)
 
             if (result.confirmed) {
                 notificationHelper.notifyClaimConfirmed(result)
@@ -259,7 +258,7 @@ class RelayClient @Inject constructor(
                 if (msg.contains("already")) {
                     notificationHelper.notifyClaimAlreadyConfirmed(result)
                 } else {
-                    notificationHelper.notifyClaimError(reference, amount)
+                    notificationHelper.notifyClaimError(reference)
                 }
             }
 
