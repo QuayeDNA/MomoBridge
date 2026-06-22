@@ -85,7 +85,6 @@ class ScanInboxUseCase @Inject constructor() {
         sources: List<SmsSource>,
         saveTransaction: suspend (ParsedTransaction) -> Boolean
     ): HistoricalParseResult = withContext(Dispatchers.IO) {
-        val twoMonthsAgo = System.currentTimeMillis() - (62L * 24 * 60 * 60 * 1000)
         var found = 0
         var skipped = 0
         var heuristicCount = 0
@@ -99,9 +98,8 @@ class ScanInboxUseCase @Inject constructor() {
                     Telephony.TextBasedSmsColumns.BODY,
                     Telephony.TextBasedSmsColumns.DATE
                 )
-                val selection = "${Telephony.TextBasedSmsColumns.ADDRESS} = ? " +
-                    "AND ${Telephony.TextBasedSmsColumns.DATE} >= ?"
-                val selectionArgs = arrayOf(source.senderAddress, twoMonthsAgo.toString())
+                val selection = "${Telephony.TextBasedSmsColumns.ADDRESS} = ?"
+                val selectionArgs = arrayOf(source.senderAddress)
                 val cursor = contentResolver.query(
                     uri, projection, selection, selectionArgs,
                     "${Telephony.TextBasedSmsColumns.DATE} ASC"

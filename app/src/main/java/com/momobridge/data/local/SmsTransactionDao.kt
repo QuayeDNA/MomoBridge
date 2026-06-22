@@ -49,9 +49,38 @@ interface SmsTransactionDao {
     @Query("UPDATE sms_transactions SET status = 'EXPIRED' WHERE status = 'PENDING' AND expiresAt < :now")
     suspend fun markExpired(now: Long): Int
 
+    @Query("""
+        UPDATE sms_transactions SET
+          expiresAt = receivedAt + :hoursInMillis,
+          status = CASE
+            WHEN receivedAt + :hoursInMillis < :now THEN 'EXPIRED'
+            WHEN status = 'EXPIRED' THEN 'PENDING'
+            ELSE status
+          END
+        WHERE status IN ('PENDING', 'EXPIRED')
+    """)
+    suspend fun recalculateExpiry(hoursInMillis: Long, now: Long): Int
+
+    @Query("""
+        UPDATE sms_transactions SET
+          expiresAt = :neverExpire,
+          status = CASE WHEN status = 'EXPIRED' THEN 'PENDING' ELSE status END
+        WHERE status IN ('PENDING', 'EXPIRED')
+    """)
+    suspend fun disableExpiry(neverExpire: Long): Int
+
+    @Query("DELETE FROM sms_transactions WHERE status = 'EXPIRED' AND expiresAt < :olderThan")
+    suspend fun purgeExpiredRecords(olderThan: Long): Int
+
     @Query("DELETE FROM sms_transactions WHERE status = :status AND createdAt < :olderThan")
     suspend fun deleteOldRecords(status: String, olderThan: Long)
 
     @Query("SELECT DISTINCT claimedByKeyLabel FROM sms_transactions WHERE claimedByKeyLabel IS NOT NULL")
     fun observeDistinctKeyLabels(): Flow<List<String>>
+
+    @Query("SELECT * FROM sms_transactions")
+    suspend fun getAllSync(): List<SmsTransactionEntity>
+
+    @Query("UPDATE sms_transactions SET reference = :reference WHERE id = :id")
+    suspend fun updateReference(id: Long, reference: String)
 }

@@ -44,6 +44,8 @@ fun TransactionsScreen(
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val statusFilter by viewModel.statusFilter.collectAsStateWithLifecycle()
+    val networkFilter by viewModel.networkFilter.collectAsStateWithLifecycle()
+    val distinctNetworks by viewModel.distinctNetworks.collectAsStateWithLifecycle()
     val keyLabelFilter by viewModel.keyLabelFilter.collectAsStateWithLifecycle()
     val keyLabels by viewModel.keyLabels.collectAsStateWithLifecycle()
     val pendingCount by viewModel.pendingCount.collectAsStateWithLifecycle()
@@ -88,9 +90,10 @@ fun TransactionsScreen(
             horizontalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
         ) {
             FilterChip(
-                selected = statusFilter == null && keyLabelFilter == null,
+                selected = statusFilter == null && networkFilter == null && keyLabelFilter == null,
                 onClick = {
                     viewModel.clearFilter()
+                    viewModel.clearNetworkFilter()
                     viewModel.clearKeyLabelFilter()
                 },
                 label = { Text("All ($totalCount)", style = MomoTypography.LabelSmall) },
@@ -111,6 +114,36 @@ fun TransactionsScreen(
                     ),
                     shape = MomoShapes.ChipShape
                 )
+            }
+        }
+
+        // Network filter row (monitored senders)
+        if (distinctNetworks.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+            HorizontalDivider(
+                color = MomoColors.BorderSubtle,
+                modifier = Modifier.padding(horizontal = MomoSpacing.Lg)
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = MomoSpacing.Lg),
+                horizontalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)
+            ) {
+                distinctNetworks.forEach { network ->
+                    FilterChip(
+                        selected = networkFilter == network,
+                        onClick = { viewModel.setNetworkFilter(network) },
+                        label = { Text(network, style = MomoTypography.LabelSmall) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MomoColors.Highlight,
+                            selectedLabelColor = MomoColors.Gold
+                        ),
+                        shape = MomoShapes.ChipShape
+                    )
+                }
             }
         }
 
@@ -149,7 +182,7 @@ fun TransactionsScreen(
         if (transactions.isEmpty()) {
             EmptyState(
                 title = "No transactions",
-                subtitle = if (statusFilter != null || keyLabelFilter != null) "No transactions match the selected filters." else "Transactions will appear here when SMS payments are received.",
+                subtitle = if (statusFilter != null || networkFilter != null || keyLabelFilter != null) "No transactions match the selected filters." else "Transactions will appear here when SMS payments are received.",
                 modifier = Modifier.fillMaxSize()
             )
         } else {

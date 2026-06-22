@@ -85,21 +85,38 @@ object FieldExtractor {
     private data class RefCandidate(val value: String, val span: Span, val score: Double)
 
     private fun pickBestReference(body: String): RefCandidate? {
-        val labeled = labeledRef.find(body)
-        if (labeled != null) {
-            val v = labeled.groupValues[1]
-            val s = Span(labeled.range.first, labeled.range.last + 1, v)
-            return RefCandidate(v, s, 1.0)
+        val allLabeled = labeledRef.findAll(body).toList()
+
+        // Priority 1: Transaction ID label (e.g. "Transaction ID: 72581798824")
+        val txnLabeled = allLabeled.firstOrNull {
+            it.value.lowercase().startsWith("transaction")
+        }
+        if (txnLabeled != null) {
+            val v = txnLabeled.groupValues[1]
+            val s = Span(txnLabeled.range.first, txnLabeled.range.last + 1, v)
+            return RefCandidate(v, s, 2.0)
         }
 
-        val candidates = digitRun.findAll(body).map { m ->
+        // Priority 2: Long digit run at start of text (T-CASH leading Transaction ID)
+        val digitCandidates = digitRun.findAll(body).map { m ->
             val v = m.groupValues[1]
             val s = Span(m.range.first, m.range.last + 1, v)
             val posScore = 1.0 - (m.range.first.toDouble() / body.length.coerceAtLeast(1))
             RefCandidate(v, s, posScore)
         }.toList()
+        if (digitCandidates.isNotEmpty()) {
+            return digitCandidates.maxByOrNull { it.score }
+        }
 
-        return candidates.maxByOrNull { it.score }
+        // Priority 3: Ref/Reference label (customer memo, lowest priority)
+        val refLabeled = allLabeled.firstOrNull()
+        if (refLabeled != null) {
+            val v = refLabeled.groupValues[1]
+            val s = Span(refLabeled.range.first, refLabeled.range.last + 1, v)
+            return RefCandidate(v, s, 1.0)
+        }
+
+        return null
     }
 
     // ── Amount ───────────────────────────────────────────────────────────────

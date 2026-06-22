@@ -5,6 +5,7 @@ import com.momobridge.data.local.SmsTransactionDao
 import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.di.RegularPrefs
 import com.momobridge.domain.model.ParsedTransaction
+import com.momobridge.domain.parser.FieldExtractor
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -97,6 +98,36 @@ class TransactionRepository @Inject constructor(
 
     suspend fun markExpired(): Int {
         return dao.markExpired(System.currentTimeMillis())
+    }
+
+    suspend fun recalculateExpiry() {
+        if (isExpiryEnabled()) {
+            val hoursInMillis = getExpiryHours() * 60 * 60 * 1000L
+            dao.recalculateExpiry(hoursInMillis, System.currentTimeMillis())
+        } else {
+            dao.disableExpiry(Long.MAX_VALUE)
+        }
+    }
+
+    suspend fun purgeOldExpired(retentionDays: Long = 30) {
+        val threshold = System.currentTimeMillis() - (retentionDays * 24 * 60 * 60 * 1000L)
+        dao.purgeExpiredRecords(threshold)
+    }
+
+    suspend fun getAllTransactions(): List<SmsTransactionEntity> = dao.getAllSync()
+
+    suspend fun reprocessExistingReferences(): Int {
+        val all = dao.getAllSync()
+        var count = 0
+        for (txn in all) {
+            val extracted = FieldExtractor.extract(txn.rawSms)
+            val newRef = extracted.reference ?: continue
+            if (newRef != txn.reference) {
+                dao.updateReference(txn.id, newRef)
+                count++
+            }
+        }
+        return count
     }
 
     fun observeTransactions(): Flow<List<SmsTransactionEntity>> = dao.observeAll()

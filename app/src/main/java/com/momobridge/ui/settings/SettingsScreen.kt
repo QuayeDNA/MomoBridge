@@ -67,6 +67,7 @@ private enum class SettingsCategory { SENDERS, CONNECTION, RULES, ABOUT }
 fun SettingsScreen(
     onNavigateToHelp: () -> Unit,
     onNavigateToSenderConfig: (String, String) -> Unit,
+    onNavigateToDebug: () -> Unit = {},
     onReconfigure: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -122,8 +123,16 @@ fun SettingsScreen(
                 onClearResult = viewModel::clearHistoricalScanResult
             )
             SettingsCategory.ABOUT -> AboutSettingsContent(
-                onBack = { category = null },
+                onBack = {
+                    viewModel.clearReprocessResult()
+                    category = null
+                },
                 onHelp = onNavigateToHelp,
+                onDebug = onNavigateToDebug,
+                onReprocess = viewModel::reprocessExistingTransactions,
+                reprocessing = state.reprocessing,
+                reprocessResult = state.reprocessResult,
+                onClearReprocessResult = viewModel::clearReprocessResult,
                 onReset = onReconfigure
             )
         }
@@ -592,7 +601,7 @@ private fun RulesSettingsContent(
             )
             Spacer(modifier = Modifier.height(MomoSpacing.Sm))
             Text(
-                text = "Scan your inbox for past money received messages from monitored senders (up to 2 months back).",
+                text = "Scan your inbox for past money received messages from monitored senders. Expiry rules automatically manage which transactions remain active.",
                 style = MomoTypography.BodySmall,
                 color = MomoColors.TextSecondary
             )
@@ -627,6 +636,11 @@ private fun RulesSettingsContent(
 private fun AboutSettingsContent(
     onBack: () -> Unit,
     onHelp: () -> Unit,
+    onDebug: () -> Unit = {},
+    onReprocess: () -> Unit = {},
+    reprocessing: Boolean = false,
+    reprocessResult: String? = null,
+    onClearReprocessResult: () -> Unit = {},
     onReset: () -> Unit
 ) {
     var showResetDialog by remember { mutableStateOf(false) }
@@ -671,6 +685,32 @@ private fun AboutSettingsContent(
                 onClick = onHelp,
                 fullWidth = true
             )
+
+            Spacer(modifier = Modifier.height(MomoSpacing.Md))
+
+            GoldOutlineButton(
+                text = "Debug Data",
+                onClick = onDebug,
+                fullWidth = true
+            )
+
+            Spacer(modifier = Modifier.height(MomoSpacing.Md))
+
+            GoldOutlineButton(
+                text = if (reprocessing) "Reprocessing..." else "Reprocess Existing",
+                onClick = onReprocess,
+                enabled = !reprocessing,
+                fullWidth = true
+            )
+
+            if (reprocessResult != null) {
+                Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+                Text(
+                    text = reprocessResult,
+                    style = MomoTypography.BodySmall,
+                    color = MomoColors.Gold
+                )
+            }
 
             Spacer(modifier = Modifier.height(MomoSpacing.Xl))
 

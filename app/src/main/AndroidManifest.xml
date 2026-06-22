@@ -48,6 +48,14 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receiver.DebugDumpReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.momobridge.action.DEBUG_DUMP" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".service.SmsListenerService"
             android:exported="false"

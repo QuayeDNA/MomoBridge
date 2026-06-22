@@ -27,6 +27,8 @@ data class SettingsUiState(
     val scanningInbox: Boolean = false,
     val scanningHistorical: Boolean = false,
     val historicalScanResult: String? = null,
+    val reprocessing: Boolean = false,
+    val reprocessResult: String? = null,
     val expiryEnabled: Boolean = true,
     val expiryHours: Long = 168
 )
@@ -84,11 +86,19 @@ class SettingsViewModel @Inject constructor(
     fun setExpiryEnabled(enabled: Boolean) {
         transactionRepository.setExpiryEnabled(enabled)
         _uiState.value = _uiState.value.copy(expiryEnabled = enabled)
+        viewModelScope.launch {
+            transactionRepository.recalculateExpiry()
+            transactionRepository.purgeOldExpired()
+        }
     }
 
     fun setExpiryHours(hours: Long) {
         transactionRepository.setExpiryHours(hours)
         _uiState.value = _uiState.value.copy(expiryHours = hours)
+        viewModelScope.launch {
+            transactionRepository.recalculateExpiry()
+            transactionRepository.purgeOldExpired()
+        }
     }
 
     // ── SMS Source Management ─────────────────────────────────────────────
@@ -186,7 +196,7 @@ class SettingsViewModel @Inject constructor(
                     append(" ${result.heuristicCount} extracted via heuristic (low confidence).")
                 }
                 if (result.found == 0) {
-                    append(" No matching transactions found in the last 2 months.")
+                    append(" No matching transactions found.")
                 }
             }
             _uiState.value = _uiState.value.copy(
@@ -198,6 +208,25 @@ class SettingsViewModel @Inject constructor(
 
     fun clearHistoricalScanResult() {
         _uiState.value = _uiState.value.copy(historicalScanResult = null)
+    }
+
+    // ── Reprocess Existing ──────────────────────────────────────────────────
+
+    fun reprocessExistingTransactions() {
+        _uiState.value = _uiState.value.copy(reprocessing = true, reprocessResult = null)
+        viewModelScope.launch {
+            val count = withContext(Dispatchers.IO) {
+                transactionRepository.reprocessExistingReferences()
+            }
+            _uiState.value = _uiState.value.copy(
+                reprocessing = false,
+                reprocessResult = "Reprocessed $count transaction(s). Reference IDs updated."
+            )
+        }
+    }
+
+    fun clearReprocessResult() {
+        _uiState.value = _uiState.value.copy(reprocessResult = null)
     }
 
     // ── Reconfigure ──────────────────────────────────────────────────────

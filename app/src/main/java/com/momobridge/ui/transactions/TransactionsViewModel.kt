@@ -25,6 +25,9 @@ class TransactionsViewModel @Inject constructor(
     private val _statusFilter = MutableStateFlow<String?>(null)
     val statusFilter: StateFlow<String?> = _statusFilter
 
+    private val _networkFilter = MutableStateFlow<String?>(null)
+    val networkFilter: StateFlow<String?> = _networkFilter
+
     private val _keyLabelFilter = MutableStateFlow<String?>(null)
     val keyLabelFilter: StateFlow<String?> = _keyLabelFilter
 
@@ -41,20 +44,26 @@ class TransactionsViewModel @Inject constructor(
     val totalCount: StateFlow<Int> = repository.observeTotalCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val distinctNetworks: StateFlow<List<String>> = allTransactions.map { txns ->
+        txns.map { it.network }.distinct().sorted()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val transactions: StateFlow<List<SmsTransactionEntity>> = combine(
-        allTransactions, _statusFilter, _keyLabelFilter, _currentPage
-    ) { all, statusF, keyF, page ->
+        allTransactions, _statusFilter, _networkFilter, _keyLabelFilter, _currentPage
+    ) { all, statusF, netF, keyF, page ->
         var filtered = all
         if (statusF != null) filtered = filtered.filter { it.status == statusF }
+        if (netF != null) filtered = filtered.filter { it.network == netF }
         if (keyF != null) filtered = filtered.filter { it.claimedByKeyLabel == keyF }
         filtered.take(PAGE_SIZE * page)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val hasMore: StateFlow<Boolean> = combine(
-        allTransactions, _statusFilter, _keyLabelFilter, _currentPage
-    ) { all, statusF, keyF, page ->
+        allTransactions, _statusFilter, _networkFilter, _keyLabelFilter, _currentPage
+    ) { all, statusF, netF, keyF, page ->
         var filtered = all
         if (statusF != null) filtered = filtered.filter { it.status == statusF }
+        if (netF != null) filtered = filtered.filter { it.network == netF }
         if (keyF != null) filtered = filtered.filter { it.claimedByKeyLabel == keyF }
         filtered.size > PAGE_SIZE * page
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -90,6 +99,17 @@ class TransactionsViewModel @Inject constructor(
 
     fun clearFilter() {
         _statusFilter.value = null
+        _networkFilter.value = null
+        _currentPage.value = 1
+    }
+
+    fun setNetworkFilter(network: String) {
+        _networkFilter.value = if (_networkFilter.value == network) null else network
+        _currentPage.value = 1
+    }
+
+    fun clearNetworkFilter() {
+        _networkFilter.value = null
         _currentPage.value = 1
     }
 

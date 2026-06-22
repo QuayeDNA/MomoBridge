@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.navArgument
 import com.momobridge.ui.apikeys.ApiKeysScreen
 import com.momobridge.ui.dashboard.DashboardScreen
+import com.momobridge.ui.debug.DebugScreen
 import com.momobridge.ui.help.HelpScreen
 import com.momobridge.ui.settings.SenderConfigScreen
 import com.momobridge.ui.settings.SettingsScreen
@@ -48,6 +49,7 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object SenderConfig : Screen("sender_config/{senderAddress}/{label}?body={body}")
     data object Help : Screen("help")
+    data object Debug : Screen("debug")
 }
 
 @Composable
@@ -126,6 +128,7 @@ fun AppNavigation(
             MainTabScreen(
                 navController = navController,
                 onNavigateToHelp = { navController.navigate(Screen.Help.route) },
+                onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
                 onNavigateToSenderConfig = { addr, label ->
                     navController.navigate("sender_config/$addr/$label")
                 }
@@ -159,6 +162,10 @@ fun AppNavigation(
         composable(Screen.Help.route) {
             HelpScreen(onBack = { navController.popBackStack() })
         }
+
+        composable(Screen.Debug.route) {
+            DebugScreen(onBack = { navController.popBackStack() })
+        }
     }
 }
 
@@ -166,6 +173,7 @@ fun AppNavigation(
 private fun MainTabScreen(
     navController: androidx.navigation.NavController,
     onNavigateToHelp: () -> Unit,
+    onNavigateToDebug: () -> Unit = {},
     onNavigateToSenderConfig: (String, String) -> Unit,
     mainTabViewModel: MainTabViewModel = hiltViewModel()
 ) {
@@ -221,6 +229,7 @@ private fun MainTabScreen(
                 SettingsScreen(
                     onNavigateToHelp = onNavigateToHelp,
                     onNavigateToSenderConfig = onNavigateToSenderConfig,
+                    onNavigateToDebug = onNavigateToDebug,
                     onReconfigure = {
                         navController.navigate(Screen.Setup.route) {
                             popUpTo(Screen.Main.route) { inclusive = true }
