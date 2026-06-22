@@ -58,6 +58,25 @@
     .__mb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .__mb-btn:active { transform: scale(0.97); }
     .__mb-result { margin-top: 0; min-height: 0; }
+    .__mb-account-info {
+      margin-bottom: 16px; padding: 14px 16px;
+      background: #0f1424;
+      border: 1px solid rgba(212, 168, 67, 0.25); border-radius: 10px;
+      animation: __mb_fadeIn 0.2s ease-out;
+    }
+    .__mb-account-label {
+      font-size: 11px; font-weight: 600; color: #5a6480;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .__mb-account-name {
+      font-size: 15px; font-weight: 600; color: #e8edf5;
+      margin-bottom: 2px;
+    }
+    .__mb-account-number {
+      font-size: 18px; font-weight: 700; color: #d4a843;
+      letter-spacing: 0.02em;
+    }
     .__mb-hint {
       margin-top: 8px; padding: 8px 12px; border-radius: 8px;
       font-size: 12px; color: #5a6480;
@@ -143,6 +162,8 @@
       var prefilledRef = params.get('reference') || '';
       var callbackUrl = params.get('callbackUrl') || '';
       var currencySymbol = params.get('currencySymbol') || 'GH\u20B5';
+      var accountName = params.get('accountName') || '';
+      var accountNumber = params.get('accountNumber') || '';
 
       var container = document.getElementById('__mb-content');
       var refInput, btn, resultEl, loadingEl;
@@ -326,6 +347,32 @@
       }
 
       // ─── Build UI ─────────────────────────────────────────────────────────
+
+      // Account info card (if provided)
+      if (accountName || accountNumber) {
+        var accountInfo = document.createElement('div');
+        accountInfo.className = '__mb-account-info';
+
+        var accountLabel = document.createElement('div');
+        accountLabel.className = '__mb-account-label';
+        accountLabel.textContent = 'Send to';
+        accountInfo.appendChild(accountLabel);
+
+        if (accountName) {
+          var acctName = document.createElement('div');
+          acctName.className = '__mb-account-name';
+          acctName.textContent = accountName;
+          accountInfo.appendChild(acctName);
+        }
+        if (accountNumber) {
+          var acctNumber = document.createElement('div');
+          acctNumber.className = '__mb-account-number';
+          acctNumber.textContent = accountNumber;
+          accountInfo.appendChild(acctNumber);
+        }
+        container.appendChild(accountInfo);
+      }
+
       var label = document.createElement('label');
       label.textContent = 'Transaction Reference';
       container.appendChild(label);

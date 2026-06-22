@@ -10,6 +10,8 @@
  *     MoMoBridge.popup({
  *       relayUrl: 'https://your-relay.com',
  *       apiKey: 'mb_...',
+ *       accountName: "John's Store",
+ *       accountNumber: "024 123 4567",
  *       onSuccess: function(data) { console.log('Confirmed', data); },
  *       onFailure: function(data) { console.log('Failed', data); },
  *     });
@@ -17,6 +19,8 @@
  *
  * The amount is returned by the relay in data.transaction.amount
  * and displayed in the result card — no amount input needed.
+ * Account name and number (set by the vendor) are shown to the customer
+ * so they know where to send payment.
  *
  * Modes: popup, inline, redirect
  */
@@ -245,6 +249,27 @@
       '}' +
       '.__mb-result-retry:hover{' +
         'background:rgba(212,168,67,0.1);' +
+      '}' +
+      '#__mb-account-info{' +
+        'margin-bottom:16px;padding:14px 16px;' +
+        'background:#0A0E1A;' +
+        'border:1px solid rgba(212,168,67,0.2);border-radius:10px;' +
+        'animation:__mb_fadeIn 0.2s cubic-bezier(0.19,1,0.22,1) both;' +
+      '}' +
+      '#__mb-account-label{' +
+        'font-size:11px;font-weight:600;color:#5A6480;' +
+        'letter-spacing:0.04em;text-transform:uppercase;' +
+        'margin-bottom:6px;' +
+      '}' +
+      '#__mb-account-name{' +
+        'font-family:"Space Grotesk",system-ui,sans-serif;' +
+        'font-size:15px;font-weight:600;color:#E8EDF5;' +
+        'margin-bottom:2px;' +
+      '}' +
+      '#__mb-account-number{' +
+        'font-family:"JetBrains Mono",monospace;' +
+        'font-size:18px;font-weight:700;color:#D4A843;' +
+        'letter-spacing:0.02em;' +
       '}' +
       '#__mb-hint{' +
         'margin-top:12px;border-radius:8px;' +
@@ -513,6 +538,25 @@
 
     // ─── Build DOM ─────────────────────────────────────────────────────────────
 
+    // Account info card (if account details provided)
+    if (options.accountName || options.accountNumber) {
+      var accountInfo = createEl('div', { id: '__mb-account-info' });
+      accountInfo.appendChild(
+        createEl('div', { id: '__mb-account-label' }, ['Send to'])
+      );
+      if (options.accountName) {
+        accountInfo.appendChild(
+          createEl('div', { id: '__mb-account-name' }, [options.accountName])
+        );
+      }
+      if (options.accountNumber) {
+        accountInfo.appendChild(
+          createEl('div', { id: '__mb-account-number' }, [options.accountNumber])
+        );
+      }
+      container.appendChild(accountInfo);
+    }
+
     // Reference field
     var field = createEl('div', { id: '__mb-field' });
     var label = createEl('label', {}, ['Transaction Reference']);
@@ -655,6 +699,8 @@
       '&currencySymbol=' + encodeURIComponent(options.currencySymbol || DEFAULT_CURRENCY);
     if (options.reference) params += '&reference=' + encodeURIComponent(options.reference);
     if (options.callbackUrl) params += '&callbackUrl=' + encodeURIComponent(options.callbackUrl);
+    if (options.accountName) params += '&accountName=' + encodeURIComponent(options.accountName);
+    if (options.accountNumber) params += '&accountNumber=' + encodeURIComponent(options.accountNumber);
 
     if (options.target === 'self') {
       window.location.href = base + params;
