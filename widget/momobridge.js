@@ -247,10 +247,40 @@
         'background:rgba(212,168,67,0.1);' +
       '}' +
       '#__mb-hint{' +
-        'margin-top:12px;padding:10px 14px;border-radius:8px;' +
-        'font-size:12px;line-height:1.5;color:#5A6480;' +
-        'background:rgba(212,168,67,0.06);' +
+        'margin-top:12px;border-radius:8px;' +
+        'background:rgba(212,168,67,0.04);' +
         'border:1px solid rgba(212,168,67,0.08);' +
+        'overflow:hidden;' +
+      '}' +
+      '#__mb-hint-header{' +
+        'display:flex;align-items:center;gap:8px;' +
+        'width:100%;padding:10px 14px;' +
+        'background:none;border:none;cursor:pointer;' +
+        'font-family:Inter,system-ui,sans-serif;' +
+        'font-size:12px;font-weight:500;color:#8B95B0;' +
+        'text-align:left;transition:color 0.15s ease;' +
+      '}' +
+      '#__mb-hint-header:hover{color:#D4A843;}' +
+      '#__mb-hint-arrow{' +
+        'font-size:10px;transition:transform 0.2s ease;' +
+        'color:#5A6480;flex-shrink:0;' +
+      '}' +
+      '#__mb-hint-arrow.__mb-open{' +
+        'transform:rotate(90deg);' +
+      '}' +
+      '#__mb-hint-body{' +
+        'padding:0 14px 10px;' +
+        'font-size:12px;line-height:1.6;color:#5A6480;' +
+        'display:none;' +
+      '}' +
+      '#__mb-hint-body.__mb-open{' +
+        'display:block;' +
+      '}' +
+      '#__mb-hint-body p{' +
+        'margin:0 0 6px;' +
+      '}' +
+      '#__mb-hint-body p:last-child{' +
+        'margin-bottom:0;' +
       '}' +
       '#__mb-inline-container .__mb-widget-wrapper{' +
         'margin:0;' +
@@ -518,12 +548,28 @@
     resultEl = createEl('div', { id: '__mb-result' });
     container.appendChild(resultEl);
 
-    // Hint
-    hintEl = createEl('div', { id: '__mb-hint' }, [
-      document.createTextNode(
-        'Send the exact amount via MoMo to the store phone, then enter the SMS reference above.'
-      ),
+    // Hint accordion
+    hintEl = createEl('div', { id: '__mb-hint' });
+    var hintHeader = createEl('button', {
+      id: '__mb-hint-header',
+      type: 'button',
+    }, [
+      createEl('span', { id: '__mb-hint-arrow' }, ['\u25B6']),
+      'How to verify your payment',
     ]);
+    var hintBody = createEl('div', { id: '__mb-hint-body' }, [
+      createEl('p', {}, ['1. Open the SMS from your mobile money provider.']),
+      createEl('p', {}, ['2. Find the transaction ID\u2014a string of numbers like \u201C0000013331054115.\u201D']),
+      createEl('p', {}, ['3. Copy the transaction ID and paste it above.']),
+      createEl('p', {}, ['4. Click \u201CVerify Payment\u201D to confirm instantly.']),
+    ]);
+    hintHeader.addEventListener('click', function () {
+      var open = hintBody.className === '__mb-open';
+      hintBody.className = open ? '' : '__mb-open';
+      document.getElementById('__mb-hint-arrow').className = open ? '' : '__mb-open';
+    });
+    hintEl.appendChild(hintHeader);
+    hintEl.appendChild(hintBody);
     container.appendChild(hintEl);
   }
 
