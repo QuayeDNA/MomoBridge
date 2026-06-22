@@ -31,6 +31,7 @@ class SmsListenerService : Service() {
     @Inject lateinit var llmFallbackUseCase: LlmFallbackUseCase
     @Inject lateinit var transactionRepository: TransactionRepository
     @Inject lateinit var notificationHelper: NotificationHelper
+    @Inject lateinit var relayClient: RelayClient
     @Inject @RegularPrefs lateinit var regularPrefs: SharedPreferences
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -41,6 +42,15 @@ class SmsListenerService : Service() {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
         startExpiryChecker()
+        startHealthHeartbeat()
+
+        // When service restarts without SMS data, ensure relay is connected
+        if (intent == null && relayClient.isSetupDone()) {
+            val state = relayClient.connectionState.value
+            if (state.status == RelayConnectionStatus.DISCONNECTED) {
+                relayClient.connect()
+            }
+        }
 
         if (intent != null) {
             val sender = intent.getStringExtra("sender") ?: return START_STICKY
@@ -142,6 +152,15 @@ class SmsListenerService : Service() {
         }
     }
 
+    private fun startHealthHeartbeat() {
+        scope.launch {
+            while (true) {
+                delay(30_000L)
+                regularPrefs.edit().putLong(KEY_LISTENER_LAST_ALIVE, System.currentTimeMillis()).apply()
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         val restartIntent = Intent(this, SmsListenerService::class.java)
@@ -151,6 +170,7 @@ class SmsListenerService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 1001
         private const val RETRAIN_NOTIFICATION_ID = 1002
+        private const val KEY_LISTENER_LAST_ALIVE = "listener_last_alive"
         const val EXTRA_RETRAIN_SENDER = "retrain_sender_address"
         const val EXTRA_RETRAIN_LABEL = "retrain_label"
         const val EXTRA_RETRAIN_BODY = "retrain_sms_body"

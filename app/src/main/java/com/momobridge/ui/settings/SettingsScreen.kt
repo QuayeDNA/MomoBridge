@@ -36,6 +36,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,20 +87,23 @@ fun SettingsScreen(
                 relayState = relayState,
                 onSelect = { category = it }
             )
-            SettingsCategory.SENDERS -> SendersSettingsContent(
-                state = state,
-                onBack = {
-                    viewModel.hideScanResults()
-                    category = null
-                },
-                onToggle = viewModel::toggleSource,
-                onConfigure = onNavigateToSenderConfig,
-                onDelete = viewModel::removeSource,
-                onAddManual = viewModel::addSourceManually,
-                onScan = viewModel::scanInbox,
-                onAddFromScan = viewModel::addSourceFromScan,
-                onHideScan = viewModel::hideScanResults
-            )
+            SettingsCategory.SENDERS -> {
+                LaunchedEffect(Unit) { viewModel.refresh() }
+                SendersSettingsContent(
+                    state = state,
+                    onBack = {
+                        viewModel.hideScanResults()
+                        category = null
+                    },
+                    onToggle = viewModel::toggleSource,
+                    onConfigure = onNavigateToSenderConfig,
+                    onDelete = viewModel::removeSource,
+                    onAddManual = viewModel::addSourceManually,
+                    onScan = viewModel::scanInbox,
+                    onAddFromScan = viewModel::addSourceFromScan,
+                    onHideScan = viewModel::hideScanResults
+                )
+            }
             SettingsCategory.CONNECTION -> ConnectionSettingsContent(
                 relayState = relayState,
                 relayUrl = viewModel.relayUrl,

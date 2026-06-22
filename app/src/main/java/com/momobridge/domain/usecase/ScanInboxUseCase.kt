@@ -36,7 +36,7 @@ class ScanInboxUseCase @Inject constructor() {
 
     fun scanSenders(
         contentResolver: ContentResolver,
-        limit: Int = 50
+        limit: Int = 100
     ): List<SenderScanResult> {
         val senderMap = mutableMapOf<String, SenderCounts>()
 
@@ -47,8 +47,11 @@ class ScanInboxUseCase @Inject constructor() {
                 Telephony.TextBasedSmsColumns.BODY,
                 Telephony.TextBasedSmsColumns.DATE
             )
-            val cursor = contentResolver.query(
-                uri, projection, null, null,
+            val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+        val cursor = contentResolver.query(
+                uri, projection,
+                "${Telephony.TextBasedSmsColumns.DATE} >= ?",
+                arrayOf(thirtyDaysAgo.toString()),
                 "${Telephony.TextBasedSmsColumns.DATE} DESC"
             )
             cursor?.use {
@@ -75,7 +78,8 @@ class ScanInboxUseCase @Inject constructor() {
         } catch (_: Exception) { }
 
         return senderMap.values
-            .sortedByDescending { it.totalMessages }
+            .filter { it.receivedCount > 0 }
+            .sortedByDescending { it.receivedCount }
             .take(limit)
             .map { it.toResult() }
     }

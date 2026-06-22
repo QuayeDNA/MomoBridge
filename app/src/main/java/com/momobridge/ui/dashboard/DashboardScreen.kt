@@ -22,8 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +44,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -74,6 +77,8 @@ fun DashboardScreen(
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
     val selectedTransaction by viewModel.selectedTransaction.collectAsStateWithLifecycle()
     val scanningHistorical by viewModel.scanningHistorical.collectAsStateWithLifecycle()
+    val isListenerAlive by viewModel.isListenerAlive.collectAsStateWithLifecycle()
+    val showBatteryBanner by viewModel.showBatteryBanner.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     val isEmpty = transactions.isEmpty() && !scanningHistorical && !isLoading
@@ -104,6 +109,16 @@ fun DashboardScreen(
                                 }
                             )
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isListenerAlive) MomoColors.StatusConfirmed
+                                else MomoColors.StatusFailed
+                            )
+                    )
                     Spacer(modifier = Modifier.width(MomoSpacing.Sm))
                     MomoBridgeLogo(fontWeight = FontWeight.Bold)
                 }
@@ -128,6 +143,10 @@ fun DashboardScreen(
 
             if (scanningHistorical) {
                 ScanningBanner()
+            }
+
+            if (showBatteryBanner) {
+                BatteryOptimizationBanner(onDismiss = viewModel::dismissBatteryBanner)
             }
 
             if (showDisconnectedWarning) {
@@ -324,6 +343,74 @@ private fun DisconnectedWarning() {
             style = MomoTypography.BodySmall,
             color = MomoColors.TextSecondary
         )
+    }
+}
+
+// ── Battery Optimization Banner ───────────────────────────────────────
+
+@Composable
+private fun BatteryOptimizationBanner(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = MomoSpacing.Lg, vertical = MomoSpacing.Md),
+        shape = MomoShapes.BadgeShape,
+        colors = CardDefaults.cardColors(containerColor = MomoColors.StatusPending.copy(alpha = 0.15f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(MomoSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Battery optimization may delay SMS detection",
+                    style = MomoTypography.BodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MomoColors.TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Disable battery optimization for MoMo Bridge to ensure instant SMS processing.",
+                    style = MomoTypography.BodySmall,
+                    color = MomoColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        try {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                android.net.Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            try {
+                                val intent = android.content.Intent(
+                                    android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                                )
+                                context.startActivity(intent)
+                            } catch (_: Exception) { }
+                        }
+                    }
+                ) {
+                    Text(
+                        text = "Disable optimization",
+                        color = MomoColors.Gold,
+                        style = MomoTypography.LabelSmall
+                    )
+                }
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = MomoColors.TextTertiary
+                )
+            }
+        }
     }
 }
 

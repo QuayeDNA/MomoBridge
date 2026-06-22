@@ -135,7 +135,7 @@ class SettingsViewModel @Inject constructor(
                 ScannedSender(
                     address = r.senderAddress,
                     displayName = r.senderAddress,
-                    messageCount = r.totalMessages,
+                    messageCount = r.receivedCount,
                     sampleBody = "${r.receivedCount} received, ${r.sentCount} sent, ${r.nonTxCount} other"
                 )
             }

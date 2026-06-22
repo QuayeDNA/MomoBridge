@@ -1,18 +1,21 @@
 package com.momobridge.ui.dashboard
 
+import android.content.Context
 import android.content.SharedPreferences
+import android.os.PowerManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.momobridge.data.local.SmsTransactionEntity
 import com.momobridge.data.repository.SmsSourceRepository
 import com.momobridge.data.repository.TransactionRepository
 import com.momobridge.di.RegularPrefs
+import com.momobridge.domain.usecase.RecoverySmsUseCase
 import com.momobridge.domain.usecase.ScanInboxUseCase
 import com.momobridge.service.RelayClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +31,8 @@ class DashboardViewModel @Inject constructor(
     private val repository: TransactionRepository,
     private val smsSourceRepository: SmsSourceRepository,
     private val relayClient: RelayClient,
-    private val scanInboxUseCase: ScanInboxUseCase
+    private val scanInboxUseCase: ScanInboxUseCase,
+    private val recoverySmsUseCase: RecoverySmsUseCase
 ) : ViewModel() {
 
     val transactions: StateFlow<List<SmsTransactionEntity>> = repository.observeTransactions()
@@ -62,6 +66,12 @@ class DashboardViewModel @Inject constructor(
     private val _scanningHistorical = MutableStateFlow(false)
     val scanningHistorical: StateFlow<Boolean> = _scanningHistorical
 
+    private val _isListenerAlive = MutableStateFlow(true)
+    val isListenerAlive: StateFlow<Boolean> = _isListenerAlive
+
+    private val _showBatteryBanner = MutableStateFlow(false)
+    val showBatteryBanner: StateFlow<Boolean> = _showBatteryBanner
+
     init {
         autoScanIfNeeded()
         viewModelScope.launch {
@@ -69,6 +79,14 @@ class DashboardViewModel @Inject constructor(
                 if (_isLoading.value) _isLoading.value = false
             }
         }
+        runRecoveryScan()
+        startListenerHealthChecker()
+        checkBatteryOptimization()
+    }
+
+    fun dismissBatteryBanner() {
+        _showBatteryBanner.value = false
+        prefs.edit().putBoolean("battery_banner_dismissed", true).apply()
     }
 
     fun selectTransaction(txn: SmsTransactionEntity) {
@@ -104,5 +122,38 @@ class DashboardViewModel @Inject constructor(
         }
 
         _scanningHistorical.value = false
+    }
+
+    private fun runRecoveryScan() {
+        val sources = smsSourceRepository.getSources().filter { it.enabled }
+        if (sources.isEmpty()) return
+
+        viewModelScope.launch {
+            val saved = recoverySmsUseCase.recoverRecent(
+                contentResolver = context.contentResolver,
+                sources = sources,
+                referenceExists = { ref -> repository.findByReference(ref) != null },
+                saveTransaction = { parsed -> repository.saveHistoricalTransaction(parsed) }
+            )
+            if (saved > 0) {
+                android.util.Log.d("DashboardVM", "Recovery scan saved $saved transactions")
+            }
+        }
+    }
+
+    private fun startListenerHealthChecker() {
+        viewModelScope.launch {
+            while (true) {
+                delay(10_000L)
+                val lastAlive = prefs.getLong("listener_last_alive", 0L)
+                _isListenerAlive.value = System.currentTimeMillis() - lastAlive < 90_000L
+            }
+        }
+    }
+
+    private fun checkBatteryOptimization() {
+        if (prefs.getBoolean("battery_banner_dismissed", false)) return
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        _showBatteryBanner.value = !pm.isIgnoringBatteryOptimizations(context.packageName)
     }
 }

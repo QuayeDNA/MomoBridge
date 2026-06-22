@@ -1,48 +1,60 @@
 package com.momobridge.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.momobridge.ui.components.GoldButton
-import com.momobridge.ui.components.GoldOutlineButton
+import com.momobridge.ui.components.MomoTextField
 import com.momobridge.ui.components.StepIndicator
 import com.momobridge.ui.theme.MomoColors
 import com.momobridge.ui.theme.MomoShapes
 import com.momobridge.ui.theme.MomoSpacing
 import com.momobridge.ui.theme.MomoTypography
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,19 +77,18 @@ fun SenderConfigScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configure ${state.label}", style = MomoTypography.TitleLarge) },
+                title = { Text(state.label, style = MomoTypography.TitleLarge) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MomoColors.GroundDark
                 ),
                 navigationIcon = {
-                    Text(
-                        text = "Back",
-                        color = MomoColors.Gold,
-                        style = MomoTypography.LabelSmall,
-                        modifier = Modifier
-                            .clickable { onBack() }
-                            .padding(start = MomoSpacing.Lg)
-                    )
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MomoColors.TextPrimary
+                        )
+                    }
                 }
             )
         }
@@ -86,390 +97,399 @@ fun SenderConfigScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(MomoSpacing.ScreenPadding)
+                .padding(horizontal = MomoSpacing.Lg)
         ) {
             StepIndicator(
-                currentStep = when (state.step) {
-                    ConfigStep.PICK_MESSAGE -> 0
-                    ConfigStep.CONFIRM_FIELDS -> 1
-                    ConfigStep.VALIDATE -> 2
-                    ConfigStep.DONE -> 3
-                },
-                totalSteps = 4
+                currentStep = if (state.step == ConfigStep.PICK_MESSAGE) 0 else 1,
+                totalSteps = 2
             )
             Spacer(modifier = Modifier.height(MomoSpacing.Lg))
 
             when (state.step) {
                 ConfigStep.PICK_MESSAGE -> {
-                    PickMessageStep(state, viewModel)
+                    // ── Step 0 content (inline in ColumnScope for weight) ──
+                    Text(
+                        "Pick a sample message",
+                        style = MomoTypography.BodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MomoColors.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Choose a recent payment SMS from ${state.label} to use as a template for detection.",
+                        style = MomoTypography.BodySmall,
+                        color = MomoColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+
+                    if (state.messages.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No messages found from this sender in your inbox.",
+                                style = MomoTypography.BodyMedium,
+                                color = MomoColors.TextTertiary
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(bottom = MomoSpacing.Lg),
+                            verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm),
+                            contentPadding = PaddingValues(bottom = MomoSpacing.Lg)
+                        ) {
+                            items(state.messages, key = { it.timestamp }) { msg ->
+                                MessageCard(
+                                    msg = msg,
+                                    onClick = { viewModel.selectMessage(msg) }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 ConfigStep.CONFIRM_FIELDS -> {
                     ConfirmFieldsStep(state, viewModel)
                 }
-
-                ConfigStep.VALIDATE -> {
-                    ValidateStep(state, viewModel)
-                }
-
-                ConfigStep.DONE -> {
-                    DoneStep(onSaved)
-                }
             }
         }
     }
 }
+
+// ── Message Card (shared) ─────────────────────────────────────────────
 
 @Composable
-private fun PickMessageStep(state: SenderConfigUiState, viewModel: SenderConfigViewModel) {
-    Text(
-        "Pick a sample SMS to use as template",
-        style = MomoTypography.BodyMedium,
-        color = MomoColors.TextSecondary
-    )
-    Spacer(Modifier.height(MomoSpacing.Md))
-    if (state.messages.isEmpty()) {
-        Text(
-            "No messages found from this sender in the inbox.",
-            style = MomoTypography.BodyMedium,
-            color = MomoColors.StatusFailed
-        )
-    }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)) {
-        items(state.messages) { msg ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.selectMessage(msg) },
-                shape = MomoShapes.CardShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = MomoColors.GroundMedium
-                )
-            ) {
-                Column(Modifier.padding(MomoSpacing.CardPadding)) {
-                    Text(
-                        msg.body,
-                        maxLines = 3,
-                        style = MomoTypography.BodySmall,
-                        color = MomoColors.TextPrimary
-                    )
-                    Spacer(Modifier.height(MomoSpacing.Xs))
-                    Text(
-                        msg.displayTime,
-                        style = MomoTypography.LabelSmall,
-                        color = MomoColors.TextTertiary
-                    )
+private fun MessageCard(msg: InboxMessage, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MomoShapes.CardShape,
+        colors = CardDefaults.cardColors(containerColor = MomoColors.GroundLight)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(MomoSpacing.CardPadding),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (msg.amount != null) {
+                        Text(
+                            text = formatAmount(msg.amount),
+                            style = MomoTypography.BodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MomoColors.Gold
+                        )
+                        Spacer(modifier = Modifier.width(MomoSpacing.Sm))
+                    }
+                    if (msg.reference != null) {
+                        Text(
+                            text = "Ref: ${msg.reference}",
+                            style = MomoTypography.LabelSmall,
+                            color = MomoColors.TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = msg.preview,
+                    style = MomoTypography.BodySmall,
+                    color = MomoColors.TextTertiary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = msg.displayTime,
+                    style = MomoTypography.LabelSmall,
+                    color = MomoColors.TextTertiary
+                )
             }
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Select",
+                tint = MomoColors.Gold.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
+
+private fun formatAmount(amount: Double): String {
+    val fmt = NumberFormat.getCurrencyInstance(Locale("en", "GH"))
+    fmt.maximumFractionDigits = 2
+    return fmt.format(amount)
+}
+
+// ── Step 1 — Confirm Fields ──────────────────────────────────────────
 
 @Composable
 private fun ConfirmFieldsStep(state: SenderConfigUiState, viewModel: SenderConfigViewModel) {
-    FieldConfirmCard(
-        label = "Reference",
-        value = state.detectedRef,
-        manualValue = state.manualRef,
-        editing = state.editingRef,
-        onEdit = viewModel::toggleEditRef,
-        onUpdate = viewModel::updateManualRef
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    FieldConfirmCard(
-        label = "Amount",
-        value = state.detectedAmount,
-        manualValue = state.manualAmount,
-        editing = state.editingAmount,
-        onEdit = viewModel::toggleEditAmount,
-        onUpdate = viewModel::updateManualAmount
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    FieldConfirmCard(
-        label = "Sender Name",
-        value = state.detectedSenderName,
-        manualValue = state.manualSenderName,
-        editing = state.editingSenderName,
-        onEdit = viewModel::toggleEditSenderName,
-        onUpdate = viewModel::updateManualSenderName,
-        optional = true
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    FieldConfirmCard(
-        label = "Sender Phone",
-        value = state.detectedSenderPhone,
-        manualValue = state.manualSenderPhone,
-        editing = state.editingSenderPhone,
-        onEdit = viewModel::toggleEditSenderPhone,
-        onUpdate = viewModel::updateManualSenderPhone,
-        optional = true
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    FieldConfirmCard(
-        label = "Balance After",
-        value = state.detectedBalance,
-        manualValue = state.manualBalance,
-        editing = state.editingBalance,
-        onEdit = viewModel::toggleEditBalance,
-        onUpdate = viewModel::updateManualBalance,
-        optional = true
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    FieldConfirmCard(
-        label = "Credit Keyword",
-        value = state.detectedKeyword,
-        manualValue = state.manualKeyword,
-        editing = state.editingKeyword,
-        onEdit = viewModel::toggleEditKeyword,
-        onUpdate = viewModel::updateManualKeyword,
-        optional = false
-    )
-    if (state.error != null) {
-        Spacer(Modifier.height(MomoSpacing.Sm))
-        Text(
-            state.error!!,
-            color = MomoColors.StatusFailed,
-            style = MomoTypography.BodySmall
-        )
-    }
-    Spacer(Modifier.height(MomoSpacing.Lg))
-    GoldButton(
-        text = "Next — Validate Rule",
-        onClick = viewModel::goToValidation,
-        fullWidth = true
-    )
-}
+    val scrollState = rememberScrollState()
 
-@Composable
-private fun ValidateStep(state: SenderConfigUiState, viewModel: SenderConfigViewModel) {
-    Text(
-        "Test with another message from same sender",
-        style = MomoTypography.BodyMedium,
-        color = MomoColors.TextSecondary
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    Text(
-        "Pick another message to verify your rule extracts fields correctly.",
-        style = MomoTypography.BodySmall,
-        color = MomoColors.TextTertiary
-    )
-    Spacer(Modifier.height(MomoSpacing.Md))
-
-    if (state.validationResult != null && state.selectedValidationMessage != null) {
-        val result = state.validationResult
-        if (result.succeeded > 0) {
-            Card(
-                shape = MomoShapes.CardShape,
-                colors = CardDefaults.cardColors(containerColor = MomoColors.GroundLight)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(MomoSpacing.CardPadding),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = "Pass",
-                        tint = MomoColors.StatusConfirmed
-                    )
-                    Spacer(Modifier.width(MomoSpacing.Sm))
-                    Column {
-                        Text(
-                            "Validation passed!",
-                            style = MomoTypography.BodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MomoColors.StatusConfirmed
-                        )
-                        Text(
-                            "The rule correctly extracted fields from this message.",
-                            style = MomoTypography.BodySmall,
-                            color = MomoColors.TextSecondary
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(MomoSpacing.Lg))
-            GoldButton(
-                text = "Save Configuration",
-                onClick = viewModel::saveAfterValidation,
-                fullWidth = true
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+    ) {
+        // Back arrow to return to message picker
+        Row(
+            modifier = Modifier
+                .clickable(onClick = viewModel::goBackToPickMessage),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back to messages",
+                tint = MomoColors.Gold,
+                modifier = Modifier.size(18.dp)
             )
-        } else {
-            Card(
-                shape = MomoShapes.CardShape,
-                colors = CardDefaults.cardColors(containerColor = MomoColors.GroundLight)
-            ) {
-                Column(modifier = Modifier.padding(MomoSpacing.CardPadding)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Fail",
-                            tint = MomoColors.StatusFailed
-                        )
-                        Spacer(Modifier.width(MomoSpacing.Sm))
-                        Text(
-                            "Validation failed",
-                            style = MomoTypography.BodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MomoColors.StatusFailed
-                        )
-                    }
-                    Spacer(Modifier.height(MomoSpacing.Sm))
-                    result.failures.forEach { failure ->
-                        Text(
-                            failure.reason,
-                            style = MomoTypography.BodySmall,
-                            color = MomoColors.TextSecondary
-                        )
-                        Spacer(Modifier.height(MomoSpacing.Xs))
-                        Text(
-                            "Message: ${failure.messageBody}",
-                            style = MomoTypography.LabelSmall,
-                            color = MomoColors.TextTertiary,
-                            maxLines = 2
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(MomoSpacing.Lg))
-            GoldOutlineButton(
-                text = "Go Back to Edit",
-                onClick = viewModel::goBackToEdit,
-                fullWidth = true
+            Spacer(modifier = Modifier.width(MomoSpacing.Xs))
+            Text(
+                "Change message",
+                style = MomoTypography.LabelSmall,
+                color = MomoColors.Gold
             )
         }
-    } else {
-        if (state.validationMessages.isEmpty()) {
+        Spacer(modifier = Modifier.height(MomoSpacing.Md))
+
+        Text(
+            "Review detected fields",
+            style = MomoTypography.BodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MomoColors.TextPrimary
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "The app automatically detected these fields. Edit if needed.",
+            style = MomoTypography.BodySmall,
+            color = MomoColors.TextSecondary
+        )
+        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+
+        // Selected message preview
+        state.selectedMessage?.let { msg ->
+            Card(
+                shape = MomoShapes.BadgeShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = MomoColors.GroundLight
+                )
+            ) {
+                Column(modifier = Modifier.padding(MomoSpacing.Md)) {
+                    Text(
+                        "Selected message",
+                        style = MomoTypography.LabelSmall,
+                        color = MomoColors.TextTertiary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        msg.preview,
+                        style = MomoTypography.BodySmall,
+                        color = MomoColors.TextPrimary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+        }
+
+        // Reference field
+        FieldEditor(
+            label = "Reference",
+            value = state.detectedRef,
+            manualValue = state.manualRef,
+            editing = state.editingRef,
+            onEdit = viewModel::toggleEditRef,
+            onUpdate = viewModel::updateManualRef,
+            isRequired = true
+        )
+        Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+
+        // Amount field
+        FieldEditor(
+            label = "Amount",
+            value = state.detectedAmount,
+            manualValue = state.manualAmount,
+            editing = state.editingAmount,
+            onEdit = viewModel::toggleEditAmount,
+            onUpdate = viewModel::updateManualAmount,
+            isRequired = true
+        )
+        Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+
+        // Optional fields (collapsible)
+        var showOptional by remember { mutableStateOf(false) }
+        Text(
+            text = if (showOptional) "Hide optional fields \u25B2" else "More fields \u25BC",
+            color = MomoColors.Gold,
+            style = MomoTypography.LabelSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clickable { showOptional = !showOptional }
+        )
+        if (showOptional) {
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+            FieldEditor(
+                label = "Sender Name",
+                value = state.detectedSenderName,
+                manualValue = state.manualSenderName,
+                editing = state.editingSenderName,
+                onEdit = viewModel::toggleEditSenderName,
+                onUpdate = viewModel::updateManualSenderName,
+                isRequired = false
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+            FieldEditor(
+                label = "Sender Phone",
+                value = state.detectedSenderPhone,
+                manualValue = state.manualSenderPhone,
+                editing = state.editingSenderPhone,
+                onEdit = viewModel::toggleEditSenderPhone,
+                onUpdate = viewModel::updateManualSenderPhone,
+                isRequired = false
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+            FieldEditor(
+                label = "Balance After",
+                value = state.detectedBalance,
+                manualValue = state.manualBalance,
+                editing = state.editingBalance,
+                onEdit = viewModel::toggleEditBalance,
+                onUpdate = viewModel::updateManualBalance,
+                isRequired = false
+            )
+            Spacer(modifier = Modifier.height(MomoSpacing.Sm))
+
+            // Keyword selector
             Text(
-                "No other messages available to validate against.",
-                style = MomoTypography.BodyMedium,
+                "Credit keyword",
+                style = MomoTypography.LabelSmall,
+                fontWeight = FontWeight.SemiBold,
                 color = MomoColors.TextSecondary
             )
-            Spacer(Modifier.height(MomoSpacing.Md))
-            GoldOutlineButton(
-                text = "Skip & Save Anyway",
-                onClick = viewModel::skipValidationAndSave,
-                fullWidth = true
-            )
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)) {
-                items(state.validationMessages) { msg ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.selectValidationMessage(msg) },
-                        shape = MomoShapes.CardShape,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MomoColors.GroundMedium
-                        )
+            Spacer(modifier = Modifier.height(MomoSpacing.Xs))
+            Row(horizontalArrangement = Arrangement.spacedBy(MomoSpacing.Sm)) {
+                listOf("received", "credited", "paid", "transferred").forEach { kw ->
+                    val selected = state.detectedKeyword == kw
+                    FilledTonalButton(
+                        onClick = { viewModel.updateKeyword(kw) },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = if (selected) MomoColors.Gold.copy(alpha = 0.2f)
+                            else MomoColors.GroundLight,
+                            contentColor = if (selected) MomoColors.Gold else MomoColors.TextSecondary
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding
                     ) {
-                        Column(Modifier.padding(MomoSpacing.CardPadding)) {
-                            Text(
-                                msg.body,
-                                maxLines = 2,
-                                style = MomoTypography.BodySmall,
-                                color = MomoColors.TextPrimary
-                            )
-                            Spacer(Modifier.height(MomoSpacing.Xs))
-                            Text(
-                                msg.displayTime,
-                                style = MomoTypography.LabelSmall,
-                                color = MomoColors.TextTertiary
-                            )
-                        }
+                        Text(
+                            kw,
+                            style = MomoTypography.LabelSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(MomoSpacing.Md))
-            GoldOutlineButton(
-                text = "Skip Validation & Save",
-                onClick = viewModel::skipValidationAndSave,
-                fullWidth = true
+        }
+
+        if (state.error != null) {
+            Spacer(modifier = Modifier.height(MomoSpacing.Md))
+            Text(
+                state.error!!,
+                color = MomoColors.StatusFailed,
+                style = MomoTypography.BodySmall
             )
         }
+
+        Spacer(modifier = Modifier.height(MomoSpacing.Xl))
+
+        GoldButton(
+            text = if (state.isSaving) "Saving\u2026" else "Save Rule",
+            onClick = viewModel::saveRule,
+            fullWidth = true,
+            enabled = !state.isSaving
+        )
+
+        Spacer(modifier = Modifier.height(MomoSpacing.Lg))
     }
 }
 
 @Composable
-private fun DoneStep(onSaved: () -> Unit) {
-    Text(
-        "Configuration saved!",
-        style = MomoTypography.TitleMedium,
-        fontWeight = FontWeight.Bold,
-        color = MomoColors.StatusConfirmed
-    )
-    Spacer(Modifier.height(MomoSpacing.Sm))
-    Text(
-        "This sender is now being monitored with your custom parsing rules.",
-        style = MomoTypography.BodyMedium,
-        color = MomoColors.TextSecondary
-    )
-    Spacer(Modifier.height(MomoSpacing.Lg))
-    GoldButton(
-        text = "Done",
-        onClick = onSaved,
-        fullWidth = true
-    )
-}
-
-@Composable
-private fun FieldConfirmCard(
+private fun FieldEditor(
     label: String,
     value: String,
     manualValue: String,
     editing: Boolean,
     onEdit: () -> Unit,
     onUpdate: (String) -> Unit,
-    optional: Boolean = false
+    isRequired: Boolean
 ) {
     val isEmpty = value.isBlank() && manualValue.isBlank()
+
     Card(
-        shape = MomoShapes.CardShape,
+        shape = MomoShapes.BadgeShape,
         colors = CardDefaults.cardColors(
-            containerColor = if (isEmpty && !optional)
-                MomoColors.GroundLight
+            containerColor = if (isEmpty && isRequired)
+                MomoColors.StatusFailed.copy(alpha = 0.08f)
             else
-                MomoColors.GroundMedium
+                MomoColors.GroundLight
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(MomoSpacing.CardPadding),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(MomoSpacing.Md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    label,
-                    style = MomoTypography.LabelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isEmpty && !optional)
-                        MomoColors.StatusFailed
-                    else
-                        MomoColors.TextSecondary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        label,
+                        style = MomoTypography.LabelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isEmpty && isRequired)
+                            MomoColors.StatusFailed
+                        else
+                            MomoColors.TextSecondary
+                    )
+                    if (isRequired) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "*",
+                            color = MomoColors.Gold,
+                            style = MomoTypography.LabelSmall
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 if (editing) {
-                    OutlinedTextField(
+                    MomoTextField(
                         value = manualValue,
                         onValueChange = onUpdate,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MomoShapes.InputShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MomoColors.BorderAccent,
-                            unfocusedBorderColor = MomoColors.BorderSubtle,
-                            cursorColor = MomoColors.Gold,
-                            focusedTextColor = MomoColors.TextPrimary,
-                            unfocusedTextColor = MomoColors.TextPrimary,
-                            focusedContainerColor = MomoColors.GroundLight,
-                            unfocusedContainerColor = MomoColors.GroundLight
-                        ),
-                        placeholder = { Text(if (value.isNotBlank()) "Auto: $value" else "Enter $label", style = MomoTypography.BodyMedium, color = MomoColors.TextTertiary) }
+                        label = label,
+                        placeholder = if (value.isNotBlank()) "Auto: $value" else "Enter $label"
                     )
                 } else {
                     Text(
-                        if (value.isNotBlank()) value else if (optional) "(skip)" else "Not detected",
+                        text = when {
+                            value.isNotBlank() -> value
+                            !isRequired -> "\u2014"
+                            else -> "Not detected"
+                        },
                         style = MomoTypography.BodyMedium,
-                        color = MomoColors.TextPrimary
+                        color = when {
+                            value.isNotBlank() -> MomoColors.TextPrimary
+                            isRequired -> MomoColors.StatusFailed
+                            else -> MomoColors.TextTertiary
+                        }
                     )
                 }
             }

@@ -3,17 +3,26 @@ package com.momobridge
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Intent
+import androidx.work.Configuration
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.momobridge.service.RelayClient
+import com.momobridge.service.SmsListenerService
+import com.momobridge.worker.ServiceHeartbeatWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
-class MomoBridgeApp : Application() {
+class MomoBridgeApp : Application(), Configuration.Provider {
 
     @Inject lateinit var relayClient: RelayClient
 
@@ -24,17 +33,44 @@ class MomoBridgeApp : Application() {
         createNotificationChannel()
         createEventChannel()
         connectRelayIfNeeded()
+        startListenerService()
+        scheduleServiceHeartbeat()
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.WARN)
+            .build()
 
     private fun connectRelayIfNeeded() {
         if (relayClient.isSetupDone()) {
             relayClient.connect()
-
-            // Listen for claim confirmations and show notification
-            relayClient.connectionState
-                .onEach { /* could show toast on connected */ }
-                .launchIn(scope)
         }
+    }
+
+    private fun startListenerService() {
+        try {
+            val intent = Intent(this, SmsListenerService::class.java)
+            startForegroundService(intent)
+        } catch (e: Exception) {
+            android.util.Log.w("MomoBridgeApp", "Could not start listener service", e)
+        }
+    }
+
+    private fun scheduleServiceHeartbeat() {
+        val constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+        val request = PeriodicWorkRequestBuilder<ServiceHeartbeatWorker>(
+            15, TimeUnit.MINUTES
+        ).setConstraints(constraints)
+         .build()
+        WorkManager.getInstance(this)
+            .enqueueUniquePeriodicWork(
+                "service_heartbeat",
+                ExistingPeriodicWorkPolicy.KEEP,
+                request
+            )
     }
 
     private fun createNotificationChannel() {

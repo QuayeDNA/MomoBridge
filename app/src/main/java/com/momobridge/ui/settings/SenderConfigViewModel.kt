@@ -1,20 +1,15 @@
 package com.momobridge.ui.settings
 
-import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.Telephony
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.momobridge.data.repository.SmsSourceRepository
-import com.momobridge.domain.model.ParsingRule
-import com.momobridge.domain.model.SenderType
 import com.momobridge.domain.model.SmsSource
 import com.momobridge.domain.parser.AutoDetectUtils
 import com.momobridge.domain.parser.DetectedFields
-import com.momobridge.domain.parser.SmsParser
-import com.momobridge.domain.usecase.RuleValidationResult
-import com.momobridge.domain.usecase.ValidateParsingRuleUseCase
+import com.momobridge.domain.parser.FieldExtractor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -23,16 +18,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 data class SenderConfigUiState(
     val senderAddress: String = "",
     val label: String = "",
-    val senderType: SenderType = SenderType.INCOMING,
     val messages: List<InboxMessage> = emptyList(),
-    val validationMessages: List<InboxMessage> = emptyList(),
     val selectedMessage: InboxMessage? = null,
-    val selectedValidationMessage: InboxMessage? = null,
+    val step: ConfigStep = ConfigStep.PICK_MESSAGE,
     val detectedRef: String = "",
     val detectedAmount: String = "",
     val detectedSenderName: String = "",
@@ -44,43 +40,38 @@ data class SenderConfigUiState(
     val manualSenderName: String = "",
     val manualSenderPhone: String = "",
     val manualBalance: String = "",
-    val manualKeyword: String = "received",
     val editingRef: Boolean = false,
     val editingAmount: Boolean = false,
     val editingSenderName: Boolean = false,
     val editingSenderPhone: Boolean = false,
     val editingBalance: Boolean = false,
-    val editingKeyword: Boolean = false,
-    val step: ConfigStep = ConfigStep.PICK_MESSAGE,
+    val isSaving: Boolean = false,
     val saved: Boolean = false,
-    val error: String? = null,
-    val validationResult: RuleValidationResult? = null
+    val error: String? = null
 )
 
 data class InboxMessage(
     val body: String,
     val timestamp: Long,
-    val displayTime: String
+    val displayTime: String,
+    val reference: String?,
+    val amount: Double?,
+    val preview: String
 )
 
 enum class ConfigStep {
     PICK_MESSAGE,
-    CONFIRM_FIELDS,
-    VALIDATE,
-    DONE
+    CONFIRM_FIELDS
 }
 
 @HiltViewModel
 class SenderConfigViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val smsSourceRepository: SmsSourceRepository,
-    private val validateParsingRuleUseCase: ValidateParsingRuleUseCase
+    private val smsSourceRepository: SmsSourceRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SenderConfigUiState())
     val uiState: StateFlow<SenderConfigUiState> = _uiState.asStateFlow()
-
-    private var currentRule: ParsingRule? = null
 
     fun initForSender(senderAddress: String, label: String, prefilledBody: String = "") {
         _uiState.value = _uiState.value.copy(senderAddress = senderAddress, label = label)
@@ -101,23 +92,30 @@ class SenderConfigViewModel @Inject constructor(
                     val selectionArgs = arrayOf(senderAddress)
                     val cursor = context.contentResolver.query(
                         uri, projection, selection, selectionArgs,
-                        "${Telephony.TextBasedSmsColumns.DATE} DESC LIMIT 20"
+                        "${Telephony.TextBasedSmsColumns.DATE} DESC LIMIT 50"
                     )
+                    val df = SimpleDateFormat("dd MMM HH:mm", Locale.US)
                     cursor?.use {
                         while (it.moveToNext()) {
                             val body = it.getString(0) ?: continue
                             val timestamp = it.getLong(1)
-                            val df = java.text.SimpleDateFormat("dd MMM HH:mm", java.util.Locale.US)
-                            inboxMessages.add(InboxMessage(body, timestamp, df.format(java.util.Date(timestamp))))
+                            val extracted = FieldExtractor.extract(body)
+                            inboxMessages.add(
+                                InboxMessage(
+                                    body = body,
+                                    timestamp = timestamp,
+                                    displayTime = df.format(Date(timestamp)),
+                                    reference = extracted.reference,
+                                    amount = extracted.amount,
+                                    preview = body.take(100).replace("\n", " ")
+                                )
+                            )
                         }
                     }
                 } catch (_: Exception) { }
                 inboxMessages
             }
-            _uiState.value = _uiState.value.copy(
-                messages = messages,
-                validationMessages = messages.drop(1).take(5)
-            )
+            _uiState.value = _uiState.value.copy(messages = messages)
 
             if (prefilledBody.isNotBlank()) {
                 val match = messages.firstOrNull { it.body == prefilledBody }
@@ -129,9 +127,10 @@ class SenderConfigViewModel @Inject constructor(
     }
 
     fun selectMessage(msg: InboxMessage) {
-        _uiState.value = _uiState.value.copy(selectedMessage = msg, step = ConfigStep.CONFIRM_FIELDS)
         val fields = AutoDetectUtils.detectFields(msg.body)
         _uiState.value = _uiState.value.copy(
+            selectedMessage = msg,
+            step = ConfigStep.CONFIRM_FIELDS,
             detectedRef = fields.ref,
             detectedAmount = fields.amount,
             detectedSenderName = fields.senderName,
@@ -143,88 +142,60 @@ class SenderConfigViewModel @Inject constructor(
             manualSenderName = fields.senderName,
             manualSenderPhone = fields.senderPhone,
             manualBalance = fields.balance,
-            manualKeyword = fields.keyword,
             editingRef = false,
             editingAmount = false,
             editingSenderName = false,
             editingSenderPhone = false,
             editingBalance = false,
-            editingKeyword = false,
             error = null
         )
     }
 
-    fun goToValidation() {
+    fun goBackToPickMessage() {
+        _uiState.value = _uiState.value.copy(
+            step = ConfigStep.PICK_MESSAGE,
+            selectedMessage = null,
+            error = null
+        )
+    }
+
+    fun saveRule() {
         val s = _uiState.value
         val body = s.selectedMessage?.body ?: return
-        val keyword = s.manualKeyword.ifBlank { s.detectedKeyword }
-        val fields = DetectedFields(
-            ref = s.manualRef.ifBlank { s.detectedRef },
-            amount = s.manualAmount.ifBlank { s.detectedAmount },
-            senderName = s.manualSenderName.ifBlank { s.detectedSenderName },
-            senderPhone = s.manualSenderPhone.ifBlank { s.detectedSenderPhone },
-            balance = s.manualBalance.ifBlank { s.detectedBalance },
-            keyword = keyword,
-            actionVerbs = listOf(keyword)
-        )
 
-        if (fields.ref.isBlank() || fields.amount.isBlank()) {
+        val ref = s.manualRef.ifBlank { s.detectedRef }
+        val amount = s.manualAmount.ifBlank { s.detectedAmount }
+        val senderName = s.manualSenderName.ifBlank { s.detectedSenderName }
+        val senderPhone = s.manualSenderPhone.ifBlank { s.detectedSenderPhone }
+        val balance = s.manualBalance.ifBlank { s.detectedBalance }
+
+        if (ref.isBlank() || amount.isBlank()) {
             _uiState.value = s.copy(error = "Reference and amount are required")
             return
         }
 
-        currentRule = AutoDetectUtils.buildRule(body, fields)
-        _uiState.value = s.copy(
-            step = ConfigStep.VALIDATE,
-            error = null,
-            validationResult = null,
-            selectedValidationMessage = null
+        val fields = DetectedFields(
+            ref = ref,
+            amount = amount,
+            senderName = senderName,
+            senderPhone = senderPhone,
+            balance = balance,
+            keyword = s.detectedKeyword,
+            actionVerbs = listOf(s.detectedKeyword)
         )
-    }
 
-    fun selectValidationMessage(msg: InboxMessage) {
-        val rule = currentRule ?: return
-        val result = validateParsingRuleUseCase.validate(
-            rule = rule,
-            sampleMessages = listOf(msg.body),
-            sender = _uiState.value.senderAddress
-        )
-        _uiState.value = _uiState.value.copy(
-            selectedValidationMessage = msg,
-            validationResult = result
-        )
-    }
+        _uiState.value = s.copy(isSaving = true, error = null)
 
-    fun saveAfterValidation() {
-        val s = _uiState.value
-        val rule = currentRule ?: return
-        val trainingBodies = mutableListOf<String>()
-        s.selectedMessage?.let { trainingBodies.add(it.body) }
-        s.selectedValidationMessage?.let { if (it.body != s.selectedMessage?.body) trainingBodies.add(it.body) }
-
+        val rule = AutoDetectUtils.buildRule(body, fields)
         val source = SmsSource(
             senderAddress = s.senderAddress,
             label = s.label.ifBlank { s.senderAddress },
-            type = s.senderType,
             enabled = true,
             parsingRule = rule,
-            trainingMessages = trainingBodies
+            trainingMessages = listOf(body)
         )
-
         smsSourceRepository.addSource(source)
-        _uiState.value = s.copy(step = ConfigStep.DONE, saved = true, error = null)
-    }
-
-    fun skipValidationAndSave() {
-        saveAfterValidation()
-    }
-
-    fun goBackToEdit() {
-        _uiState.value = _uiState.value.copy(
-            step = ConfigStep.CONFIRM_FIELDS,
-            validationResult = null,
-            selectedValidationMessage = null
-        )
+        _uiState.value = _uiState.value.copy(isSaving = false, saved = true)
     }
 
     fun toggleEditRef() { toggle { it.copy(editingRef = !it.editingRef) } }
@@ -232,7 +203,6 @@ class SenderConfigViewModel @Inject constructor(
     fun toggleEditSenderName() { toggle { it.copy(editingSenderName = !it.editingSenderName) } }
     fun toggleEditSenderPhone() { toggle { it.copy(editingSenderPhone = !it.editingSenderPhone) } }
     fun toggleEditBalance() { toggle { it.copy(editingBalance = !it.editingBalance) } }
-    fun toggleEditKeyword() { toggle { it.copy(editingKeyword = !it.editingKeyword) } }
 
     private fun toggle(transform: (SenderConfigUiState) -> SenderConfigUiState) {
         _uiState.value = transform(_uiState.value)
@@ -243,5 +213,5 @@ class SenderConfigViewModel @Inject constructor(
     fun updateManualSenderName(v: String) { _uiState.value = _uiState.value.copy(manualSenderName = v) }
     fun updateManualSenderPhone(v: String) { _uiState.value = _uiState.value.copy(manualSenderPhone = v) }
     fun updateManualBalance(v: String) { _uiState.value = _uiState.value.copy(manualBalance = v) }
-    fun updateManualKeyword(v: String) { _uiState.value = _uiState.value.copy(manualKeyword = v) }
+    fun updateKeyword(v: String) { _uiState.value = _uiState.value.copy(detectedKeyword = v) }
 }

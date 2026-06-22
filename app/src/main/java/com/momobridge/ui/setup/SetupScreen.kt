@@ -472,6 +472,30 @@ private fun RelayContent(
             style = MomoTypography.BodySmall
         )
     }
+
+    Spacer(modifier = Modifier.height(MomoSpacing.Lg))
+    Card(
+        shape = com.momobridge.ui.theme.MomoShapes.BadgeShape,
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = com.momobridge.ui.theme.MomoColors.GroundLight
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(MomoSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "\u26A0\uFE0F",
+                style = MomoTypography.BodyMedium
+            )
+            Spacer(modifier = Modifier.width(MomoSpacing.Sm))
+            Text(
+                text = "After setup, disable battery optimization for MoMo Bridge in System Settings to ensure instant SMS processing.",
+                style = MomoTypography.BodySmall,
+                color = MomoColors.TextSecondary
+            )
+        }
+    }
 }
 
 // ── Step 3 — Sender Configuration ────────────────────────────────────
